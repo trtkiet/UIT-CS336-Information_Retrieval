@@ -49,18 +49,17 @@ def search_api():
         logger.error(f"An error occurred during search: {e}", exc_info=True)
         return jsonify({"error": "An internal error occurred during search."}), 500
 
-@app.route('/frames/<path:video_id>/<int:keyframe_index>')
+@app.route('/keyframes/<string:video_id>/keyframe_<int:keyframe_index>.webp')
 def serve_frame_image(video_id, keyframe_index):
     """
     Serves the actual keyframe image file to the front-end.
     This allows the <img> tag to have a valid src URL.
     """
     try:
-        filename = f"{keyframe_index:03d}.jpg" 
-        return send_from_directory(
-            os.path.join(config.KEYFRAMES_DIR, video_id), 
-            filename
-        )
+        keyframe_dir = os.path.join(config.KEYFRAMES_DIR, video_id)
+        filename = f"keyframe_{keyframe_index}.webp"
+        return send_from_directory(keyframe_dir, filename)
+        
     except FileNotFoundError:
         return send_from_directory('static', 'placeholder.png'), 404
 

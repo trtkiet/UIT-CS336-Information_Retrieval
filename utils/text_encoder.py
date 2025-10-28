@@ -30,7 +30,7 @@ class TextEncoder:
         logger.info("TextEncoder initialized successfully.")
 
     def encode(self, query: str):
-        text_inputs = self.precomputed_tokens.get(query) or self.tokenizer([query]).to(self.device)
+        text_inputs = self.tokenizer([query]).to(self.device)
 
         with torch.no_grad():
             text_features = self.model.encode_text(text_inputs)

@@ -185,15 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const resultElement = document.createElement('div');
             resultElement.classList.add('result-item');
             
-            const imageUrl = `/frames/${item.video_id}/${item.keyframe_index}`;
-            // const scoresHTML = `
-            //     Rerank Score: ${item.rerank_score ? item.rerank_score.toFixed(4) : 'N/A'}<br>
-            //     RRF Score: ${item.rrf_score ? item.rrf_score.toFixed(4) : 'N/A'}<br>
-            //     Vector Dist: ${item.vector_score ? item.vector_score.toFixed(4) : 'N/A'}<br>
-            //     Content Score: ${item.content_score ? item.content_score.toFixed(2) : 'N/A'}<br>
-            //     Metadata Score: ${item.metadata_score ? item.metadata_score.toFixed(2) : 'N/A'}
-            // `;
-
+            const imageUrl = `/keyframes/${item.video_id}/keyframe_${item.keyframe_index}.webp`;
+            // console.log(imageUrl)
             resultElement.innerHTML = `
                 <img 
                     src="${imageUrl}" 

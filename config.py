@@ -17,7 +17,7 @@ CLIP_FEATURES_DIR = "data/embeddings"
 METADATA_DIR = "data/media-info"
 OCR_DIR = "data/ocr_results"
 OBJECT_DETECTION_DIR = "data/objects"
-KEYFRAMES_DIR = "data/key_frames"
+KEYFRAMES_DIR = "data/keyframes"
 VIDEOS_DIR = "data/videos"
 
 # --- Model ---

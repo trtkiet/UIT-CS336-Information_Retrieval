@@ -2,5 +2,5 @@ data
 volumes
 __pycache__
 note.txt
-# *.log
+*.log
 .venv
