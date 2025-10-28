@@ -6,14 +6,14 @@ ES_PORT = "9200"
 
 # --- Milvus collection settings ---
 KEYFRAME_COLLECTION_NAME = "video_keyframes"
-VECTOR_DIMENSION = 512 
+VECTOR_DIMENSION = 1024 
 
 # --- Elasticsearch index names ---
 METADATA_INDEX_NAME = "video_metadata"
 ES_FRAMES_INDEX_NAME = "video_frames"
 
 # --- Data paths ---
-CLIP_FEATURES_DIR = "data/clip-features-32"
+CLIP_FEATURES_DIR = "data/embeddings"
 METADATA_DIR = "data/media-info"
 OCR_DIR = "data/ocr_results"
 OBJECT_DETECTION_DIR = "data/objects"
@@ -21,7 +21,8 @@ KEYFRAMES_DIR = "data/key_frames"
 VIDEOS_DIR = "data/videos"
 
 # --- Model ---
-MODEL_NAME = "M-CLIP/XLM-Roberta-Large-Vit-B-32"
+CLIP_MODEL_NAME = "ViT-H-14-378-quickgelu"
+CLIP_PRETRAINED = "dfn5b"
 
 # --- Search Parameters ---
 RRF_K = 60 # Fusion parameter

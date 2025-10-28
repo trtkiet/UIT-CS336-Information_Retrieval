@@ -1,13 +1,13 @@
 import logging
 from pymilvus import connections, Collection
-from elasticsearch import Elasticsearch
+# from elasticsearch import Elasticsearch
 import torch
 from PIL import Image, UnidentifiedImageError
 import os
 
 import config
 from utils.text_encoder import TextEncoder
-from utils.ranker import rrf_ranker, CrossModalReRanker
+# from utils.ranker import rrf_ranker, CrossModalReRanker
 from retrievers import milvus_retriever, es_retriever
 
 # --- Setup Logging ---
@@ -33,10 +33,10 @@ class HybridVideoRetrievalSystem:
         connections.connect("default", host=config.MILVUS_HOST, port=config.MILVUS_PORT)
         logger.info("Successfully connected to Milvus.")
 
-        self.es = Elasticsearch(f"http://{config.ES_HOST}:{config.ES_PORT}", timeout=30, retry_on_timeout=True, max_retries=3)
-        if not self.es.ping():
-            raise ConnectionError("Could not connect to Elasticsearch.")
-        logger.info("Successfully connected to Elasticsearch.")
+        # self.es = Elasticsearch(f"http://{config.ES_HOST}:{config.ES_PORT}", timeout=30, retry_on_timeout=True, max_retries=3)
+        # if not self.es.ping():
+            # raise ConnectionError("Could not connect to Elasticsearch.")
+        # logger.info("Successfully connected to Elasticsearch.")
         
         # Load Milvus collections
         self.keyframes_collection = Collection(config.KEYFRAME_COLLECTION_NAME)
@@ -109,44 +109,61 @@ class HybridVideoRetrievalSystem:
         logger.info("1/3: Searching...")
         query_vector = self.encoder.encode(query)
         vector_scores = milvus_retriever.search_keyframes(self.keyframes_collection, query_vector)
-        meta_scores = es_retriever.search_metadata(self.es, metadata)
-        content_scores = es_retriever.search_keyframes(self.es, text, object_list)
+        # meta_scores = es_retriever.search_metadata(self.es, metadata)
+        # content_scores = es_retriever.search_keyframes(self.es, text, object_list)
 
-        logger.info("2/3: Fusing retrieval results...")
-        ranked_vector_scores = sorted(vector_scores.items(), key=lambda item: item[1])
-        ranked_content_scores = sorted(content_scores.items(), key=lambda item: item[1], reverse=True)
-        candidate_frames_set = set(vector_scores.keys()) | set(content_scores.keys())
-        meta_propagated = {frame: meta_scores.get(frame[0], 0) for frame in candidate_frames_set}
-        ranked_meta_scores = sorted(meta_propagated.items(), key=lambda item: item[1], reverse=True)
-        
-        fused_scores = rrf_ranker([ranked_vector_scores, ranked_content_scores, ranked_meta_scores])
-        ranked_fused_scores = sorted(fused_scores.items(), key=lambda item: item[1], reverse=True)
-        
-        NUM_CANDIDATES_TO_RERANK = top_k * 5
-        candidates_for_reranking = [key for key, score in ranked_fused_scores[:NUM_CANDIDATES_TO_RERANK]]
-        
-        logger.info(f"3/3: Re-ranking top {len(candidates_for_reranking)} candidates...")
-        reranked_scores = self.reranker.rerank(
-            text_query=query,
-            candidate_frames=candidates_for_reranking,
-            image_loader_func=self._load_keyframe_image 
-        )
 
-        ranked_reranked_scores = sorted(reranked_scores.items(), key=lambda item: item[1], reverse=True)
+
+
+        # logger.info("2/3: Fusing retrieval results...")
+        # ranked_vector_scores = sorted(vector_scores.items(), key=lambda item: item[1])
+        # ranked_content_scores = sorted(content_scores.items(), key=lambda item: item[1], reverse=True)
+        # candidate_frames_set = set(vector_scores.keys()) | set(content_scores.keys())
+        # meta_propagated = {frame: meta_scores.get(frame[0], 0) for frame in candidate_frames_set}
+        # ranked_meta_scores = sorted(meta_propagated.items(), key=lambda item: item[1], reverse=True)
+        
+        # fused_scores = rrf_ranker([ranked_vector_scores, ranked_content_scores, ranked_meta_scores])
+        # ranked_fused_scores = sorted(fused_scores.items(), key=lambda item: item[1], reverse=True)
+        
+        # NUM_CANDIDATES_TO_RERANK = top_k * 5
+        # candidates_for_reranking = [key for key, score in ranked_fused_scores[:NUM_CANDIDATES_TO_RERANK]]
+        
+        # logger.info(f"3/3: Re-ranking top {len(candidates_for_reranking)} candidates...")
+        # reranked_scores = self.reranker.rerank(
+        #     text_query=query,
+        #     candidate_frames=candidates_for_reranking,
+        #     image_loader_func=self._load_keyframe_image 
+        # )
+
+        # ranked_reranked_scores = sorted(reranked_scores.items(), key=lambda item: item[1], reverse=True)
+
+        ranked_vector_scores = sorted(vector_scores.items(), key=lambda item: item[1], reverse=True)
 
         results = []
-        # reranked_results is a sorted list of [((vid, idx), rerank_score), ...]
-        for (video_id, keyframe_index), rerank_score in ranked_reranked_scores[:top_k]:
+        for (video_id, keyframe_index), rerank_score in ranked_vector_scores[:top_k]:
             key = (video_id, keyframe_index)
             results.append({
                 "video_id": video_id,
                 "keyframe_index": keyframe_index,
                 "vector_score": vector_scores.get(key),
-                "content_score": content_scores.get(key),
-                "metadata_score": meta_scores.get(video_id),
-                "rrf_score": fused_scores.get(key),
-                "rerank_score": rerank_score
+                "content_score": 0,
+                "metadata_score": 0,
+                "rrf_score": 0,
+                "rerank_score": 0
             })
+                
+        # reranked_results is a sorted list of [((vid, idx), rerank_score), ...]
+        # for (video_id, keyframe_index), rerank_score in ranked_reranked_scores[:top_k]:
+        #     key = (video_id, keyframe_index)
+        #     results.append({
+        #         "video_id": video_id,
+        #         "keyframe_index": keyframe_index,
+        #         "vector_score": vector_scores.get(key),
+        #         "content_score": content_scores.get(key),
+        #         "metadata_score": meta_scores.get(video_id),
+        #         "rrf_score": fused_scores.get(key),
+        #         "rerank_score": rerank_score
+        #     })
             
         logger.info(f"Search complete. {results}")
         return results

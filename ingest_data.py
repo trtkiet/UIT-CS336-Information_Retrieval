@@ -7,6 +7,7 @@ from elasticsearch.helpers import bulk
 from pymilvus import connections, utility, FieldSchema, CollectionSchema, DataType, Collection
 from collections import Counter
 import config
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +27,20 @@ def setup_milvus_collection(collection_name, schema, index_field, index_params):
 
 def ingest_keyframe_data(collection: Collection):
     logger.info("Ingesting keyframe data into Milvus...")
-    for npy_file in Path(config.CLIP_FEATURES_DIR).glob("*.npy"):
-        video_id = npy_file.stem
-        vectors = np.load(npy_file).astype(np.float32)
-        entities = [[video_id] * len(vectors), list(range(len(vectors))), vectors]
+    root = Path(config.CLIP_FEATURES_DIR)
+    for video_path in list(root.iterdir()):
+        video_id = video_path.name
+        vectors = []
+        frame_indices = []
+        for pt_file in list(video_path.glob("*.pt")):
+            frame_idx = int(pt_file.stem.split("_")[-1])
+            vec = torch.load(str(pt_file), map_location="cpu").numpy().astype(np.float32)
+            vec = vec.reshape(1, -1)
+            vectors.append(vec)
+            frame_indices.append(frame_idx)
+        vectors = np.vstack(vectors)
+        num_vectors = len(vectors)
+        entities = [[video_id] * len(vectors), frame_indices, vectors]
         collection.insert(entities)
     collection.flush()
     logger.info("Keyframe data ingestion complete.")
@@ -151,13 +162,13 @@ def generate_frames_actions():
 def main():
     # Connect to services
     connections.connect("default", host=config.MILVUS_HOST, port=config.MILVUS_PORT)
-    es = Elasticsearch(f"http://{config.ES_HOST}:{config.ES_PORT}",
-                        timeout=60,
-                        max_retries=3, 
-                        retry_on_timeout=True)
+    # es = Elasticsearch(f"http://{config.ES_HOST}:{config.ES_PORT}",
+    #                     timeout=60,
+    #                     max_retries=3, 
+    #                     retry_on_timeout=True)
     
-    if not es.ping():
-        raise ConnectionError("Initial ping to Elasticsearch failed.")
+    # if not es.ping():
+    #     raise ConnectionError("Initial ping to Elasticsearch failed.")
 
     # --- Milvus Ingestion ---
     kf_fields = [
@@ -173,22 +184,22 @@ def main():
     ingest_keyframe_data(kf_collection)
 
     # --- Elasticsearch Ingestion ---
-    setup_es_index(es, config.METADATA_INDEX_NAME, actions_generator=generate_metadata_actions)
+    # setup_es_index(es, config.METADATA_INDEX_NAME, actions_generator=generate_metadata_actions)
     
-    frames_mappings = {
-                "properties": {
-                    "video_id": {"type": "keyword"},
-                    "keyframe_index": {"type": "integer"},
-                    "ocr_text": {"type": "text"},
-                    "detected_objects": {
-                        "type": "nested",
-                        "properties": {
-                            "label": {"type": "keyword"},
-                            "count": {"type": "integer"}
-                        }
-                    }
-                }
-            }
-    setup_es_index(es, config.ES_FRAMES_INDEX_NAME, mappings=frames_mappings, actions_generator=generate_frames_actions)
+    # frames_mappings = {
+    #             "properties": {
+    #                 "video_id": {"type": "keyword"},
+    #                 "keyframe_index": {"type": "integer"},
+    #                 "ocr_text": {"type": "text"},
+    #                 "detected_objects": {
+    #                     "type": "nested",
+    #                     "properties": {
+    #                         "label": {"type": "keyword"},
+    #                         "count": {"type": "integer"}
+    #                     }
+    #                 }
+    #             }
+    #         }
+    # setup_es_index(es, config.ES_FRAMES_INDEX_NAME, mappings=frames_mappings, actions_generator=generate_frames_actions)
 
     logger.info("--- DATA INGESTION COMPLETE ---")
