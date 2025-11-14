@@ -11,6 +11,7 @@ Create a `config.py` file and populate it with the necessary paths and settings.
 
 ```bash
 docker compose up -d
+sudo systemctl start mongod
 ```
 
 ### 3. Install Python Dependencies

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 try:
-    search_system = VideoRetrievalSystem(re_ingest=False)
+    search_system = VideoRetrievalSystem(re_ingest=True)
     logger.info("Search system initialized successfully!")
 except Exception as e:
     logger.error(f"Failed to initialize search system: {e}")
@@ -79,4 +79,4 @@ def serve_video_file(video_id):
         return "Video not found", 404
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)
