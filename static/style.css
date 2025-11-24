@@ -250,3 +250,113 @@ IGNORE_WHEN_COPYING_END
     padding: 2px 4px;
     border-radius: 3px;
 }
+
+/* ===== PREVIEW VIDEO KHI HOVER ===== */
+.result-item {
+    position: relative; /* Quan trọng để đặt preview overlay */
+}
+
+.hover-preview {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 200px;
+    background: rgba(0, 0, 0, 0.9);
+    display: none; /* Ẩn mặc định */
+    z-index: 10;
+    border-radius: 8px 8px 0 0;
+}
+
+.result-item:hover .hover-preview {
+    display: block; /* Hiện khi hover */
+}
+
+.hover-preview video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ===== TIMELINE PREVIEW (THUMBNAIL TRÊN THANH THỜI GIAN) ===== */
+.timeline-preview {
+    position: absolute;
+    bottom: 50px; /* Đặt phía trên thanh thời gian */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 160px;
+    height: 90px;
+    background: #000;
+    border: 2px solid #fff;
+    border-radius: 4px;
+    display: none;
+    pointer-events: none;
+    z-index: 1001;
+}
+
+.timeline-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.timeline-preview .time-label {
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+/* ===== NÚT TUA FRAME ===== */
+.frame-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 10px;
+    background: #f0f0f0;
+    border-radius: 4px;
+}
+
+.frame-btn {
+    background: #0077b6;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.frame-btn:hover {
+    background: #005f8a;
+}
+
+.frame-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.frame-info {
+    font-size: 14px;
+    color: #555;
+    font-weight: bold;
+}
+
+/* Video player container cải tiến */
+.video-player-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.video-player-wrapper video {
+    width: 100%;
+    display: block;
+}
