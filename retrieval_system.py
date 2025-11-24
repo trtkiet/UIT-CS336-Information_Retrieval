@@ -1,8 +1,11 @@
 import logging
-from pymilvus import connections, Collection
+
+from elasticsearch import Elasticsearch
+from pymilvus import Collection, connections
 from pymongo import MongoClient
-import torch
+
 import config
+from utils.elasticsearch_client import get_elasticsearch_client
 from utils.text_encoder import TextEncoder
 
 # --- Setup Logging ---
@@ -28,8 +31,12 @@ class VideoRetrievalSystem:
         self.object_collection = mongo_db[config.MONGO_OBJECT_COLLECTION]
         logger.info("Successfully connected to MongoDB.")
 
+        # --- Elasticsearch ---
+        self.es_client: Elasticsearch = get_elasticsearch_client()
+        logger.info("Successfully connected to Elasticsearch.")
+
         # Initialize the text encoder
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cpu"
         self.encoder = TextEncoder(device=self.device)
 
     def clip_search(self, query: str = "", max_results: int = 200) -> list:
@@ -44,7 +51,7 @@ class VideoRetrievalSystem:
 
         query_vector = self.encoder.encode(query)
         
-        search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
+        search_params = {"metric_type": "COSINE", "params": {"nprobe": 10}}
     
         search_results = self.keyframes_collection.search(
             data=query_vector,
@@ -148,8 +155,50 @@ class VideoRetrievalSystem:
         except Exception as e:
             logger.error(f"An error occurred during object search: {e}")
             return []
+        
+    def transcript_search(self, query: str = "", max_results: int = 200) -> list[dict]:
+        if not query:
+            return []
+
+        try:
+            response = self.es_client.search(
+                index=config.TRANSCRIPT_INDEX,
+                size=max_results,
+                query={
+                    "bool": {
+                        "should": [
+                            {"match": {"text": {"query": query, "fuzziness": "AUTO"}}},
+                            {"match_phrase": {"text": {"query": query}}},
+                            {"match": {"text.as_you_type": {"query": query}}},
+                        ],
+                        "minimum_should_match": 1,
+                    }
+                },
+                _source=["video_id", "keyframe_index", "start", "end", "text"],
+            )
+
+            hits = []
+            for hit in response.get("hits", {}).get("hits", []):
+                source = hit.get("_source", {})
+                hits.append(
+                    {
+                        "video_id": source.get("video_id"),
+                        "keyframe_index": source.get("keyframe_index"),
+                        "start": source.get("start"),
+                        "end": source.get("end"),
+                        "transcript_text": source.get("text"),
+                        "transcript_score": hit.get("_score"),
+                    }
+                )
+
+            logger.info(f"Elasticsearch: Found {len(hits)} transcript matches.")
+            return hits
+        except Exception as e:
+            logger.error(f"An error occurred during transcript search: {e}")
+            return [] 
     
     def intersect(self, list_results: list[list[dict]]) -> list[dict]:
+        logger.info(f"Intersecting {len(list_results)} result sets.")
         if not list_results:
             return []
         

@@ -1,12 +1,60 @@
 import logging
-from pathlib import Path
-import numpy as np
-from pymilvus import connections, utility, FieldSchema, CollectionSchema, DataType, Collection
-from pymongo import MongoClient, UpdateOne
-import config
-import torch
 import os
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
+import torch
+from elasticsearch import Elasticsearch
+from elasticsearch.helpers import bulk
+from pymilvus import Collection, CollectionSchema, DataType, FieldSchema, connections, utility
+from pymongo import MongoClient, UpdateOne
+
+import config
+from utils.elasticsearch_client import (
+    get_elasticsearch_client,
+    recreate_transcript_index,
+)
+
+BULK_CHUNK_SIZE = 2000
+
+
+def _load_keyframe_map(video_id: str):
+    maps_dir = Path(config.KEYFRAMES_DIR) / "maps"
+    map_file = maps_dir / f"{video_id}_map.csv"
+    if not map_file.exists():
+        return None
+
+    try:
+        df = pd.read_csv(map_file, usecols=["FrameID", "Seconds"])
+        df = df.dropna(subset=["FrameID", "Seconds"]).sort_values("Seconds")
+        if df.empty:
+            return None
+        frame_ids = df["FrameID"].to_numpy(dtype=np.int32)
+        seconds = df["Seconds"].to_numpy(dtype=np.float32)
+        return seconds, frame_ids
+    except Exception as exc:
+        logger.warning(f"Failed to load keyframe map for {video_id}: {exc}")
+        return None
+
+
+def _resolve_frames_from_map(mapping, target_seconds: np.ndarray):
+    if mapping is None or target_seconds.size == 0:
+        return None, None
+
+    seconds, frame_ids = mapping
+    if seconds.size == 0:
+        return None, None
+
+    positions = np.searchsorted(seconds, target_seconds, side="left")
+    right_idx = np.clip(positions, 0, len(seconds) - 1)
+    left_idx = np.clip(positions - 1, 0, len(seconds) - 1)
+
+    diff_left = np.abs(target_seconds - seconds[left_idx])
+    diff_right = np.abs(target_seconds - seconds[right_idx])
+    best_idx = np.where(diff_left <= diff_right, left_idx, right_idx)
+
+    return frame_ids[best_idx].astype(int), seconds[best_idx].astype(float)
 
 logger = logging.getLogger(__name__)
 
@@ -125,8 +173,98 @@ def ingest_object_detection_data(mongo_collection, folder_path):
             except Exception as e:
                 logger.error(f"An error occurred while processing {full_path}: {e}")
     logger.info(f"Object detection data ingestion complete.")
+    
+def ingest_transcript_data(es_client: Elasticsearch, folder_path: str) -> None:
+    logger.info("Ingesting transcript data into Elasticsearch...")
+
+    transcripts_dir = Path(folder_path)
+    if not transcripts_dir.exists():
+        logger.error(f"Transcript directory not found: {transcripts_dir}")
+        return
+
+    csv_files = sorted(transcripts_dir.glob("*.csv"))
+    if not csv_files:
+        logger.warning("No transcript CSV files found.")
+        return
+
+    fps = config.VIDEO_FPS
+    total_docs = 0
+    map_cache: dict[str, tuple[np.ndarray, np.ndarray] | None] = {}
+
+    for csv_path in csv_files:
+        video_id = csv_path.stem
+        try:
+            df = pd.read_csv(csv_path)
+        except Exception as exc:
+            logger.error(f"Failed to read {csv_path}: {exc}")
+            continue
+
+        df.columns = [col.strip().title() for col in df.columns]
+        required_columns = {"Start", "End", "Text"}
+        if not required_columns.issubset(df.columns):
+            logger.warning(f"Transcript file {csv_path} missing required columns; skipping")
+            continue
+
+        df = df.dropna(subset=["Text"])
+        df["Text"] = df["Text"].astype(str).str.strip()
+        df = df[df["Text"] != ""]
+        if df.empty:
+            continue
+
+        start_secs = pd.to_numeric(df["Start"], errors="coerce").fillna(0.0).to_numpy(dtype=np.float32)
+        end_secs = pd.to_numeric(df["End"], errors="coerce").to_numpy(dtype=np.float32)
+        end_secs = np.where(np.isnan(end_secs), start_secs, end_secs)
+        end_secs = np.maximum(end_secs, start_secs)
+
+        start_frames = np.maximum(0, np.rint(start_secs * fps).astype(np.int32))
+
+        if video_id not in map_cache:
+            map_cache[video_id] = _load_keyframe_map(video_id)
+        frame_map = map_cache[video_id]
+
+        resolved_frames = start_frames
+        resolved_starts = start_secs
+        if frame_map:
+            resolved = _resolve_frames_from_map(frame_map, start_secs)
+            if resolved[0] is not None:
+                resolved_frames = resolved[0]
+                resolved_starts = resolved[1]
+
+        texts = df["Text"].tolist()
+        row_ids = df.index.to_numpy()
+
+        actions = []
+        for idx in range(len(texts)):
+            action = {
+                "_index": config.TRANSCRIPT_INDEX,
+                "_id": f"{video_id}_{resolved_frames[idx]}_{row_ids[idx]}",
+                "_source": {
+                    "video_id": video_id,
+                    "keyframe_index": int(resolved_frames[idx]),
+                    "start": float(round(resolved_starts[idx], 3)),
+                    "end": float(round(end_secs[idx], 3)),
+                    "text": texts[idx],
+                },
+            }
+            actions.append(action)
+
+            if len(actions) >= BULK_CHUNK_SIZE:
+                success, _ = bulk(es_client, actions, refresh=False)
+                total_docs += success
+                actions.clear()
+
+        if actions:
+            success, _ = bulk(es_client, actions, refresh=False)
+            total_docs += success
+
+    es_client.indices.refresh(index=config.TRANSCRIPT_INDEX)
+    logger.info(f"Transcript ingestion complete. Total documents: {total_docs}")
 
 def main():
+    es_client = get_elasticsearch_client()
+    recreate_transcript_index(es_client)
+    ingest_transcript_data(es_client, config.TRANSCRIPTS_DIR)
+
     # --- Milvus Ingestion ---
     connections.connect("default", host=config.MILVUS_HOST, port=config.MILVUS_PORT)
     kf_fields = [
@@ -136,7 +274,7 @@ def main():
         FieldSchema(name="keyframe_vector", dtype=DataType.FLOAT_VECTOR, dim=config.VECTOR_DIMENSION)
     ]
     kf_schema = CollectionSchema(kf_fields, "Keyframe vectors")
-    kf_index_params = {"metric_type": "L2", "index_type": "IVF_FLAT", "params": {"nlist": 128}}
+    kf_index_params = {"metric_type": "COSINE", "index_type": "IVF_FLAT", "params": {"nlist": 128}}
     
     kf_collection = setup_milvus_collection(config.KEYFRAME_COLLECTION_NAME, kf_schema, "keyframe_vector", kf_index_params)
     ingest_keyframe_data(kf_collection)
