@@ -281,7 +281,7 @@ IGNORE_WHEN_COPYING_END
 /* ===== TIMELINE PREVIEW (THUMBNAIL TRÊN THANH THỜI GIAN) ===== */
 .timeline-preview {
     position: absolute;
-    bottom: 50px; /* Đặt phía trên thanh thời gian */
+    /*bottom: 50px; !* Đặt phía trên thanh thời gian *!*/
     left: 50%;
     transform: translateX(-50%);
     width: 160px;
