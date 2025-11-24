@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 import logging
 from retrieval_system import VideoRetrievalSystem 
 import config
+import traceback
 
 log_file = "system.log"
 logging.basicConfig(
@@ -17,10 +18,11 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 try:
-    search_system = VideoRetrievalSystem(re_ingest=True)
+    search_system = VideoRetrievalSystem(re_ingest=False)
     logger.info("Search system initialized successfully!")
 except Exception as e:
     logger.error(f"Failed to initialize search system: {e}")
+    logger.error(traceback.format_exc())
     search_system = None
 
 @app.route('/')
@@ -43,14 +45,29 @@ def search_api():
     logger.info(f"Received search request: {query_data}")
 
     try:
-        clip_results = search_system.clip_search(query_data.get('description'), max_results=500)
-        
+        description = query_data.get('description', '')
+        result_sets = []
+        if description:
+            clip_results = search_system.clip_search(description, max_results=500)
+            result_sets.append(clip_results)
+    
         if query_data.get('objects'):
-            object_results = search_system.object_search(query_data.get('objects'), projection={'video_id': 1, 'keyframe_index': 1})
-            results = search_system.intersect([clip_results, object_results])
-            return jsonify(results)
+            object_results = search_system.object_search(
+                query_data['objects'], projection={'video_id': 1, 'keyframe_index': 1}
+            )
+            result_sets.append(object_results)
 
-        return jsonify(clip_results)
+        transcript_text = query_data.get('transcript') or query_data.get('audio')
+        if transcript_text:
+            transcript_results = search_system.transcript_search(transcript_text)
+            result_sets.append(transcript_results)
+
+        # if len(result_sets) == 1:
+        #     return jsonify(clip_results)
+
+        results = search_system.intersect(result_sets)
+        logger.info(f"Search completed. Number of results: {len(results)}")
+        return jsonify(results)
     except Exception as e:
         logger.error(f"An error occurred during search: {e}", exc_info=True)
         return jsonify({"error": "An internal error occurred during search."}), 500

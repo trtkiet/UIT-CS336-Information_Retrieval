@@ -8,6 +8,7 @@ filelock==3.20.0
 Flask==3.1.2
 fsspec==2025.10.0
 ftfy==6.3.1
+elasticsearch==8.15.1
 grpcio==1.76.0
 h11==0.16.0
 hf-xet==1.2.0

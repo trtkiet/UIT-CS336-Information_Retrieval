@@ -13,6 +13,7 @@ MONGO_OBJECT_COLLECTION = "object_detection_results"
 CLIP_FEATURES_DIR = "data/embeddings"
 KEYFRAMES_DIR = "data/keyframes"
 OBJECT_DETECTION_DIR = "data/objects"
+TRANSCRIPTS_DIR = "data/transcripts"
 VIDEOS_DIR = "data/videos"
 
 # --- Model ---
@@ -125,3 +126,10 @@ OBJECT_LABELS = [
     "Seahorse", "Perfume", "Alpaca", "Taxi", "Canoe", "Remote control", 
     "Wheelchair", "Rugby ball", "Armadillo", "Maracas", "Helmet"
 ]
+
+# --- Elasticsearch settings ---
+ELASTIC_HOST = "localhost"
+ELASTIC_PORT = "9200"
+ELASTIC_SCHEME = "http"
+TRANSCRIPT_INDEX = "video_transcripts"
+VIDEO_FPS = 25
