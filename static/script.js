@@ -224,10 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
             previewVideo.loop = true;
             previewVideo.preload = 'none';
 
-            // [QUAN TRỌNG] Thêm css pointer-events: none cho video nếu muốn click xuyên qua
-            // Tuy nhiên vì ta đã bắt sự kiện ở cha (.result-item) nên không cần thiết lắm,
-            // nhưng tốt nhất nên set width/height 100% trong CSS.
-
             resultElement.innerHTML = `
             <img 
                 src="${imageUrl}" 
@@ -279,280 +275,283 @@ document.addEventListener('DOMContentLoaded', () => {
      * Opens the video player modal.
      */
     // javascript
-function openModal(videoId, startTime) {
-    // Dọn sạch modal cũ
-    closeModal();
+    function openModal(videoId, startTime) {
+        // Dọn sạch modal cũ
+        closeModal();
 
-    modalVideoTitle.textContent = `Playing: ${videoId}`;
-    const videoUrl = `/videos/${videoId}#t=${startTime}`;
-    modalVideoPlayer.src = videoUrl;
-    modalOverlay.classList.remove('hidden');
+        modalVideoTitle.textContent = `Playing: ${videoId}`;
+        const videoUrl = `/videos/${videoId}#t=${startTime}`;
+        modalVideoPlayer.src = videoUrl;
+        modalOverlay.classList.remove('hidden');
 
-    const videoWrapper = modalVideoPlayer.parentElement;
-    if (getComputedStyle(videoWrapper).position === 'static') {
-        videoWrapper.style.position = 'relative';
-    }
+        const videoWrapper = modalVideoPlayer.parentElement;
+        if (getComputedStyle(videoWrapper).position === 'static') {
+            videoWrapper.style.position = 'relative';
+        }
 
-    // --- Thanh timeline riêng ---
-    const timelineBar = document.createElement('div');
-    timelineBar.classList.add('video-timeline');
-    timelineBar.style.position = 'relative';
-    timelineBar.style.height = '8px';
-    timelineBar.style.background = '#444';
-    timelineBar.style.marginTop = '8px';
-    timelineBar.style.cursor = 'pointer';
+        // --- Thanh timeline riêng ---
+        const timelineBar = document.createElement('div');
+        timelineBar.classList.add('video-timeline');
+        timelineBar.style.position = 'relative';
+        timelineBar.style.height = '8px';
+        timelineBar.style.background = '#444';
+        timelineBar.style.marginTop = '8px';
+        timelineBar.style.cursor = 'pointer';
 
-    const progressFill = document.createElement('div');
-    progressFill.style.position = 'absolute';
-    progressFill.style.left = '0';
-    progressFill.style.top = '0';
-    progressFill.style.bottom = '0';
-    progressFill.style.width = '0%';
-    progressFill.style.background = '#1db954';
-    timelineBar.appendChild(progressFill);
+        const progressFill = document.createElement('div');
+        progressFill.style.position = 'absolute';
+        progressFill.style.left = '0';
+        progressFill.style.top = '0';
+        progressFill.style.bottom = '0';
+        progressFill.style.width = '0%';
+        progressFill.style.background = '#1db954';
+        timelineBar.appendChild(progressFill);
 
-    // --- Timeline hover preview box ---
-    const timelinePreview = document.createElement('div');
-    timelinePreview.classList.add('timeline-preview');
-    timelinePreview.style.display = 'none';
-    timelinePreview.style.position = 'absolute';
-    timelinePreview.style.bottom = '100%';
-    timelinePreview.style.zIndex = '100';
-    timelinePreview.style.pointerEvents = 'none';
+        // --- Timeline hover preview box ---
+        const timelinePreview = document.createElement('div');
+        timelinePreview.classList.add('timeline-preview');
+        timelinePreview.style.display = 'none';
+        timelinePreview.style.position = 'absolute';
+        timelinePreview.style.bottom = '120%'; // nằm trên thanh timeline
+        timelinePreview.style.transform = 'translateX(-50%)';
+        timelinePreview.style.zIndex = '999';
+        timelinePreview.style.pointerEvents = 'none';
 
-    timelinePreview.innerHTML = `
+
+        timelinePreview.innerHTML = `
         <img src="" alt="Preview" style="max-width: 150px; border: 1px solid #fff; display:none;">
         <div class="time-label" style="background: rgba(0,0,0,0.7); color: #fff; padding: 2px 5px; text-align: center;">0:00</div>
     `;
-    videoWrapper.appendChild(timelinePreview);
+        timelineBar.style.position = 'relative';
+        timelineBar.appendChild(timelinePreview);
 
-    const previewImg = timelinePreview.querySelector('img');
-    const timeLabel = timelinePreview.querySelector('.time-label');
+        const previewImg = timelinePreview.querySelector('img');
+        const timeLabel = timelinePreview.querySelector('.time-label');
 
-    // Video ẩn để render frame preview (không ảnh hưởng video chính)
-    const previewVideo = document.createElement('video');
-    previewVideo.src = `/videos/${videoId}`;
-    previewVideo.muted = true;
-    previewVideo.preload = 'metadata';
-    previewVideo.style.display = 'none';
-    videoWrapper.appendChild(previewVideo);
+        // Video ẩn để render frame preview (không ảnh hưởng video chính)
+        const previewVideo = document.createElement('video');
+        previewVideo.src = `/videos/${videoId}`;
+        previewVideo.muted = true;
+        previewVideo.preload = 'metadata';
+        previewVideo.style.display = 'none';
+        videoWrapper.appendChild(previewVideo);
 
-    // Biến cho throttle hover
-    let hoverTargetTime = null;
-    let hoverScheduled = false;
+        // Biến cho throttle hover
+        let hoverTargetTime = null;
+        let hoverScheduled = false;
 
-    // Tạo canvas share cho tất cả lần vẽ
-    const previewCanvas = document.createElement('canvas');
-    const previewCtx = previewCanvas.getContext('2d');
+        // Tạo canvas share cho tất cả lần vẽ
+        const previewCanvas = document.createElement('canvas');
+        const previewCtx = previewCanvas.getContext('2d');
 
-    // Hàm thực thi seek + vẽ frame (throttle)
-    const runHoverPreview = () => {
-        hoverScheduled = false;
-        if (hoverTargetTime === null || !previewVideo.duration) return;
+        // Hàm thực thi seek + vẽ frame (throttle)
+        const runHoverPreview = () => {
+            hoverScheduled = false;
+            if (hoverTargetTime === null || !previewVideo.duration) return;
 
-        const targetTime = hoverTargetTime;
-        hoverTargetTime = null;
+            const targetTime = hoverTargetTime;
+            hoverTargetTime = null;
 
-        const video = previewVideo;
+            const video = previewVideo;
 
-        const onSeeked = () => {
-            // Nếu trong lúc seek user đã hover chỗ khác, bỏ frame này
-            if (hoverTargetTime !== null && Math.abs(video.currentTime - targetTime) > 0.1) {
-                return;
-            }
+            const onSeeked = () => {
+                // Nếu trong lúc seek user đã hover chỗ khác, bỏ frame này
+                if (hoverTargetTime !== null && Math.abs(video.currentTime - targetTime) > 0.1) {
+                    return;
+                }
 
-            const vw = video.videoWidth || video.clientWidth;
-            const vh = video.videoHeight || video.clientHeight;
-            if (!vw || !vh) return;
+                const vw = video.videoWidth || video.clientWidth;
+                const vh = video.videoHeight || video.clientHeight;
+                if (!vw || !vh) return;
 
-            previewCanvas.width = vw;
-            previewCanvas.height = vh;
+                previewCanvas.width = vw;
+                previewCanvas.height = vh;
 
-            try {
-                previewCtx.drawImage(video, 0, 0, vw, vh);
-                const dataUrl = previewCanvas.toDataURL('image/jpeg', 0.7);
-                previewImg.style.display = 'block';
-                previewImg.src = dataUrl;
-            } catch (err) {
-                console.warn('Cannot draw video frame to canvas:', err);
-                previewImg.style.display = 'none';
+                try {
+                    previewCtx.drawImage(video, 0, 0, vw, vh);
+                    const dataUrl = previewCanvas.toDataURL('image/jpeg', 0.7);
+                    previewImg.style.display = 'block';
+                    previewImg.src = dataUrl;
+                } catch (err) {
+                    console.warn('Cannot draw video frame to canvas:', err);
+                    previewImg.style.display = 'none';
+                }
+            };
+
+            video.addEventListener('seeked', onSeeked, {once: true});
+            video.currentTime = targetTime;
+        };
+
+        // Throttle bằng setTimeout 80ms
+        const scheduleHoverPreview = () => {
+            if (!hoverScheduled) {
+                hoverScheduled = true;
+                setTimeout(runHoverPreview, 80);
             }
         };
 
-        video.addEventListener('seeked', onSeeked, { once: true });
-        video.currentTime = targetTime;
-    };
+        const handleMouseMove = (e) => {
+            if (!previewVideo.duration) return;
 
-    // Throttle bằng setTimeout 80ms
-    const scheduleHoverPreview = () => {
-        if (!hoverScheduled) {
-            hoverScheduled = true;
-            setTimeout(runHoverPreview, 80);
-        }
-    };
+            const rect = timelineBar.getBoundingClientRect();
+            const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const hoverTime = percent * previewVideo.duration;
 
-    const handleMouseMove = (e) => {
-        if (!previewVideo.duration) return;
+            // Hiển thị box preview
+            timelinePreview.style.display = 'block';
+            let previewLeft = percent * rect.width - (timelinePreview.offsetWidth / 2);
+            previewLeft = Math.max(0, Math.min(previewLeft, rect.width - timelinePreview.offsetWidth));
+            timelinePreview.style.left = `${percent * 100}%`;
 
-        const rect = timelineBar.getBoundingClientRect();
-        const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        const hoverTime = percent * previewVideo.duration;
+            const minutes = Math.floor(hoverTime / 60);
+            const seconds = Math.floor(hoverTime % 60);
+            timeLabel.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-        // Hiển thị box preview
-        timelinePreview.style.display = 'block';
-        let previewLeft = percent * rect.width - (timelinePreview.offsetWidth / 2);
-        previewLeft = Math.max(0, Math.min(previewLeft, rect.width - timelinePreview.offsetWidth));
-        timelinePreview.style.left = `${previewLeft}px`;
+            // Cập nhật target time và schedule vẽ
+            hoverTargetTime = hoverTime;
+            scheduleHoverPreview();
+        };
 
-        const minutes = Math.floor(hoverTime / 60);
-        const seconds = Math.floor(hoverTime % 60);
-        timeLabel.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        const handleMouseLeave = () => {
+            timelinePreview.style.display = 'none';
+            hoverTargetTime = null;
+        };
 
-        // Cập nhật target time và schedule vẽ
-        hoverTargetTime = hoverTime;
-        scheduleHoverPreview();
-    };
+        const handleTimelineClick = (e) => {
+            if (!modalVideoPlayer.duration) return;
 
-    const handleMouseLeave = () => {
-        timelinePreview.style.display = 'none';
-        hoverTargetTime = null;
-    };
+            const rect = timelineBar.getBoundingClientRect();
+            const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const newTime = percent * modalVideoPlayer.duration;
 
-    const handleTimelineClick = (e) => {
-        if (!modalVideoPlayer.duration) return;
+            modalVideoPlayer.currentTime = newTime; // Seek thật khi click
+        };
 
-        const rect = timelineBar.getBoundingClientRect();
-        const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        const newTime = percent * modalVideoPlayer.duration;
+        // Cập nhật progressFill theo thời gian thực
+        const updateProgress = () => {
+            if (!modalVideoPlayer.duration) return;
+            const p = (modalVideoPlayer.currentTime / modalVideoPlayer.duration) * 100;
+            progressFill.style.width = `${p}%`;
+        };
 
-        modalVideoPlayer.currentTime = newTime; // Seek thật khi click
-    };
+        timelineBar.addEventListener('mousemove', handleMouseMove);
+        timelineBar.addEventListener('mouseleave', handleMouseLeave);
+        timelineBar.addEventListener('click', handleTimelineClick);
+        modalVideoPlayer.addEventListener('timeupdate', updateProgress);
 
-    // Cập nhật progressFill theo thời gian thực
-    const updateProgress = () => {
-        if (!modalVideoPlayer.duration) return;
-        const p = (modalVideoPlayer.currentTime / modalVideoPlayer.duration) * 100;
-        progressFill.style.width = `${p}%`;
-    };
+        videoWrapper.appendChild(timelineBar);
 
-    timelineBar.addEventListener('mousemove', handleMouseMove);
-    timelineBar.addEventListener('mouseleave', handleMouseLeave);
-    timelineBar.addEventListener('click', handleTimelineClick);
-    modalVideoPlayer.addEventListener('timeupdate', updateProgress);
+        // --- Frame controls ---
+        const frameControls = document.createElement('div');
+        frameControls.classList.add('frame-controls');
+        frameControls.style.marginTop = '10px';
+        frameControls.style.display = 'flex';
+        frameControls.style.justifyContent = 'center';
+        frameControls.style.gap = '15px';
 
-    videoWrapper.appendChild(timelineBar);
-
-    // --- Frame controls ---
-    const frameControls = document.createElement('div');
-    frameControls.classList.add('frame-controls');
-    frameControls.style.marginTop = '10px';
-    frameControls.style.display = 'flex';
-    frameControls.style.justifyContent = 'center';
-    frameControls.style.gap = '15px';
-
-    frameControls.innerHTML = `
+        frameControls.innerHTML = `
         <button class="frame-btn" id="prev-frame-btn" style="padding: 5px 10px;">◀ Previous Frame</button>
         <span class="frame-info" id="current-frame-info" style="line-height: 30px;">Frame: 0</span>
         <button class="frame-btn" id="next-frame-btn" style="padding: 5px 10px;">Next Frame ▶</button>
     `;
 
-    const modalContent = document.querySelector('.modal-content');
-    modalContent.appendChild(frameControls);
+        const modalContent = document.querySelector('.modal-content');
+        modalContent.appendChild(frameControls);
 
-    const prevBtn = document.getElementById('prev-frame-btn');
-    const nextBtn = document.getElementById('next-frame-btn');
-    const frameInfo = document.getElementById('current-frame-info');
+        const prevBtn = document.getElementById('prev-frame-btn');
+        const nextBtn = document.getElementById('next-frame-btn');
+        const frameInfo = document.getElementById('current-frame-info');
 
-    const frameRate = 25;
-    const frameDuration = 1 / frameRate;
+        const frameRate = 25;
+        const frameDuration = 1 / frameRate;
 
-    const updateFrameInfo = () => {
-        if (!modalVideoPlayer.duration) {
-            frameInfo.textContent = 'Frame: 0 / ...';
-            return;
-        }
-        const currentFrame = Math.floor(modalVideoPlayer.currentTime * frameRate);
-        const totalFrames = Math.floor(modalVideoPlayer.duration * frameRate);
-        frameInfo.textContent = `Frame: ${currentFrame} / ${isNaN(totalFrames) ? '...' : totalFrames}`;
-    };
-
-    modalVideoPlayer.addEventListener('timeupdate', updateFrameInfo);
-    modalVideoPlayer.addEventListener('loadedmetadata', updateFrameInfo);
-
-    const handlePrevFrame = () => {
-        modalVideoPlayer.pause();
-        const currentFrame = Math.floor(modalVideoPlayer.currentTime * frameRate);
-        modalVideoPlayer.currentTime = Math.max(0, (currentFrame - 1) * frameDuration);
-    };
-
-    const handleNextFrame = () => {
-        modalVideoPlayer.pause();
-        const currentFrame = Math.floor(modalVideoPlayer.currentTime * frameRate);
-        modalVideoPlayer.currentTime = (currentFrame + 1) * frameDuration;
-    };
-
-    prevBtn.addEventListener('click', handlePrevFrame);
-    nextBtn.addEventListener('click', handleNextFrame);
-
-    const handleKeyPress = (e) => {
-        if (modalOverlay.classList.contains('hidden')) return;
-
-        if (e.key === 'ArrowLeft') handlePrevFrame();
-        if (e.key === 'ArrowRight') handleNextFrame();
-        if (e.key === ' ') {
-            e.preventDefault();
-            modalVideoPlayer.paused ? modalVideoPlayer.play() : modalVideoPlayer.pause();
-        }
-        if (e.key === 'Escape') closeModal();
-    };
-    document.addEventListener('keydown', handleKeyPress);
-
-    // Lưu mọi handler/element để cleanup
-    modalOverlay.dataset.handlersAttached = 'true';
-    modalOverlay._cleanupHandlers = {
-        handleKeyPress,
-        handleMouseMove,
-        handleMouseLeave,
-        handleTimelineClick,
-        updateFrameInfo,
-        updateProgress,
-        timelinePreview,
-        frameControls,
-        timelineBar,
-        previewVideo
-    };
-
-    modalVideoPlayer.play().catch(err => console.warn('Autoplay prevented:', err));
-}
-
-function closeModal() {
-    if (modalOverlay.classList.contains('hidden')) return;
-
-    if (modalOverlay.dataset.handlersAttached === 'true') {
-        const h = modalOverlay._cleanupHandlers;
-        if (h) {
-            document.removeEventListener('keydown', h.handleKeyPress);
-            if (h.timelineBar) {
-                h.timelineBar.removeEventListener('mousemove', h.handleMouseMove);
-                h.timelineBar.removeEventListener('mouseleave', h.handleMouseLeave);
-                h.timelineBar.removeEventListener('click', h.handleTimelineClick);
-                h.timelineBar.remove();
+        const updateFrameInfo = () => {
+            if (!modalVideoPlayer.duration) {
+                frameInfo.textContent = 'Frame: 0 / ...';
+                return;
             }
-            modalVideoPlayer.removeEventListener('timeupdate', h.updateFrameInfo);
-            modalVideoPlayer.removeEventListener('timeupdate', h.updateProgress);
-            modalVideoPlayer.removeEventListener('loadedmetadata', h.updateFrameInfo);
+            const currentFrame = Math.floor(modalVideoPlayer.currentTime * frameRate);
+            const totalFrames = Math.floor(modalVideoPlayer.duration * frameRate);
+            frameInfo.textContent = `Frame: ${currentFrame} / ${isNaN(totalFrames) ? '...' : totalFrames}`;
+        };
 
-            if (h.timelinePreview) h.timelinePreview.remove();
-            if (h.frameControls) h.frameControls.remove();
-            if (h.previewVideo) h.previewVideo.remove();
-        }
-        delete modalOverlay._cleanupHandlers;
-        delete modalOverlay.dataset.handlersAttached;
+        modalVideoPlayer.addEventListener('timeupdate', updateFrameInfo);
+        modalVideoPlayer.addEventListener('loadedmetadata', updateFrameInfo);
+
+        const handlePrevFrame = () => {
+            modalVideoPlayer.pause();
+            const currentFrame = Math.floor(modalVideoPlayer.currentTime * frameRate);
+            modalVideoPlayer.currentTime = Math.max(0, (currentFrame - 1) * frameDuration);
+        };
+
+        const handleNextFrame = () => {
+            modalVideoPlayer.pause();
+            const currentFrame = Math.floor(modalVideoPlayer.currentTime * frameRate);
+            modalVideoPlayer.currentTime = (currentFrame + 1) * frameDuration;
+        };
+
+        prevBtn.addEventListener('click', handlePrevFrame);
+        nextBtn.addEventListener('click', handleNextFrame);
+
+        const handleKeyPress = (e) => {
+            if (modalOverlay.classList.contains('hidden')) return;
+
+            if (e.key === 'ArrowLeft') handlePrevFrame();
+            if (e.key === 'ArrowRight') handleNextFrame();
+            if (e.key === ' ') {
+                e.preventDefault();
+                modalVideoPlayer.paused ? modalVideoPlayer.play() : modalVideoPlayer.pause();
+            }
+            if (e.key === 'Escape') closeModal();
+        };
+        document.addEventListener('keydown', handleKeyPress);
+
+        // Lưu mọi handler/element để cleanup
+        modalOverlay.dataset.handlersAttached = 'true';
+        modalOverlay._cleanupHandlers = {
+            handleKeyPress,
+            handleMouseMove,
+            handleMouseLeave,
+            handleTimelineClick,
+            updateFrameInfo,
+            updateProgress,
+            timelinePreview,
+            frameControls,
+            timelineBar,
+            previewVideo
+        };
+
+        modalVideoPlayer.play().catch(err => console.warn('Autoplay prevented:', err));
     }
 
-    modalOverlay.classList.add('hidden');
-    modalVideoPlayer.pause();
-    modalVideoPlayer.src = '';
-    modalVideoTitle.textContent = '';
-}
+    function closeModal() {
+        if (modalOverlay.classList.contains('hidden')) return;
+
+        if (modalOverlay.dataset.handlersAttached === 'true') {
+            const h = modalOverlay._cleanupHandlers;
+            if (h) {
+                document.removeEventListener('keydown', h.handleKeyPress);
+                if (h.timelineBar) {
+                    h.timelineBar.removeEventListener('mousemove', h.handleMouseMove);
+                    h.timelineBar.removeEventListener('mouseleave', h.handleMouseLeave);
+                    h.timelineBar.removeEventListener('click', h.handleTimelineClick);
+                    h.timelineBar.remove();
+                }
+                modalVideoPlayer.removeEventListener('timeupdate', h.updateFrameInfo);
+                modalVideoPlayer.removeEventListener('timeupdate', h.updateProgress);
+                modalVideoPlayer.removeEventListener('loadedmetadata', h.updateFrameInfo);
+
+                if (h.timelinePreview) h.timelinePreview.remove();
+                if (h.frameControls) h.frameControls.remove();
+                if (h.previewVideo) h.previewVideo.remove();
+            }
+            delete modalOverlay._cleanupHandlers;
+            delete modalOverlay.dataset.handlersAttached;
+        }
+
+        modalOverlay.classList.add('hidden');
+        modalVideoPlayer.pause();
+        modalVideoPlayer.src = '';
+        modalVideoTitle.textContent = '';
+    }
 });
