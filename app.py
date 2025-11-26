@@ -98,45 +98,63 @@ def serve_video_file(video_id):
     except FileNotFoundError:
         return "Video not found", 404
 
-@app.route("/video-segment/<string:video_id>")
-def serve_video_segment(video_id):
+# @app.route("/video-segment/<string:video_id>")
+# def serve_video_segment(video_id):
+#     """
+#     API trả về đoạn video ngắn để preview.
+#     Sử dụng ffmpeg cắt video dựa trên start time.
+#     """
+#     try:
+#         start_time = request.args.get('start', '0')
+#         duration = request.args.get('duration', '3')
+#
+#         video_path = os.path.join(config.VIDEOS_DIR, f"{video_id}.mp4")
+#         if not os.path.exists(video_path):
+#             return "Video not found", 404
+#
+#         cmd = [
+#             "ffmpeg",
+#             "-ss", start_time,
+#             "-i", video_path,
+#             "-t", duration,
+#             "-c", "copy",       # Copy stream để nhanh nhất, không encode lại
+#             "-f", "mp4",
+#             "-movflags", "frag_keyframe+empty_moov",
+#             "pipe:1"
+#         ]
+#
+#         # Log lỗi ffmpeg nếu cần debug
+#         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+#
+#         def generate():
+#             while True:
+#                 chunk = process.stdout.read(4096)
+#                 if not chunk:
+#                     break
+#                 yield chunk
+#
+#         return Response(generate(), mimetype="video/mp4")
+#     except Exception as e:
+#         logger.error(f"An error occurred during video segment: {e}")
+#         return "Error", 500
+#
+
+
+HLS_DIR = os.path.join(os.getcwd(), 'data', 'hls')
+
+@app.route('/hls/<string:video_id>/<path:filename>')
+def serve_hls(video_id, filename):
     """
-    API trả về đoạn video ngắn để preview.
-    Sử dụng ffmpeg cắt video dựa trên start time.
+    API phục vụ file playlist (.m3u8) và segment (.ts)
     """
     try:
-        start_time = request.args.get('start', '0')
-        duration = request.args.get('duration', '3')
-
-        video_path = os.path.join(config.VIDEOS_DIR, f"{video_id}.mp4")
-        if not os.path.exists(video_path):
-            return "Video not found", 404
-
-        cmd = [
-            "ffmpeg",
-            "-ss", start_time,
-            "-i", video_path,
-            "-t", duration,
-            "-c", "copy",       # Copy stream để nhanh nhất, không encode lại
-            "-f", "mp4",
-            "-movflags", "frag_keyframe+empty_moov",
-            "pipe:1"
-        ]
-
-        # Log lỗi ffmpeg nếu cần debug
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-
-        def generate():
-            while True:
-                chunk = process.stdout.read(4096)
-                if not chunk:
-                    break
-                yield chunk
-
-        return Response(generate(), mimetype="video/mp4")
-    except Exception as e:
-        logger.error(f"An error occurred during video segment: {e}")
-        return "Error", 500
+        video_hls_path = os.path.join(HLS_DIR, video_id)
+        # Cache 1 năm (31536000s) vì file HLS không bao giờ thay đổi
+        response = send_from_directory(video_hls_path, filename)
+        response.headers['Cache-Control'] = 'public, max-age=31536000'
+        return response
+    except FileNotFoundError:
+        return "File not found", 404
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

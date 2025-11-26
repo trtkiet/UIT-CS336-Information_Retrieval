@@ -146,29 +146,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const sortBy = sortBySelect.value;
-        const sortedResults = [...results];
+        const sortedResults = [...results]; 
 
-        // sortedResults.sort((a, b) => {
-        //     if (sortBy === 'clip_score') {
-        //         const scoreA = a[sortBy] === null ? Infinity : a[sortBy];
-        //         const scoreB = b[sortBy] === null ? Infinity : b[sortBy];
-        //         return scoreA - scoreB;
-        //     } else {
-        //         const scoreA = a[sortBy] === null ? -Infinity : a[sortBy];
-        //         const scoreB = b[sortBy] === null ? -Infinity : b[sortBy];
-        //         return scoreB - scoreA;
-        //     }
-        // });
-        //
         resultsContainer.innerHTML = '';
+        
         sortedResults.forEach(item => {
             const resultElement = document.createElement('div');
             resultElement.classList.add('result-item');
 
-            // Lưu metadata vào dataset
+            // --- LƯU METADATA ---
             resultElement.dataset.videoId = item.video_id;
             resultElement.dataset.keyframeIndex = item.keyframe_index;
-            resultElement.dataset.fps = item.fps; // Lưu FPS vào đây
+            // Lấy FPS gốc từ server trả về (quan trọng để tính time chính xác)
+            resultElement.dataset.fps = item.fps; 
+
             resultElement.style.cursor = 'pointer';
 
             const imageUrl = `/keyframes/${item.video_id}/keyframe_${item.keyframe_index}.webp`;
@@ -176,10 +167,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const previewContainer = document.createElement('div');
             previewContainer.classList.add('hover-preview');
 
+            // Tạo thẻ video
             const previewVideo = document.createElement('video');
-            previewVideo.muted = true;
-            previewVideo.loop = true;
-            previewVideo.preload = 'none';
+            previewVideo.muted = true; // Bắt buộc mute
+            previewVideo.playsInline = true; 
+            previewVideo.style.width = "100%";
+            previewVideo.style.height = "100%";
+            previewVideo.style.objectFit = "cover";
 
             resultElement.innerHTML = `
             <img 
@@ -200,31 +194,72 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
             `;
+            
             previewContainer.appendChild(previewVideo);
             resultElement.insertBefore(previewContainer, resultElement.firstChild);
 
-            // XỬ LÝ HOVER: Dùng FPS động
+            // --- LOGIC HLS HOVER ---
+            let hls = null;
             let hoverTimeout;
-            resultElement.addEventListener('mouseenter', () => {
-                hoverTimeout = setTimeout(() => {
-                    const videoFps = item.fps || 25; // Dùng FPS chuẩn
-                    const startTime = Math.max(0, item.keyframe_index / videoFps - 2);
+            
+            const cleanupHls = () => {
+                if (hls) {
+                    hls.destroy();
+                    hls = null;
+                }
+                previewVideo.pause();
+                previewVideo.removeAttribute('src'); 
+                previewVideo.load();
+            };
 
-                    previewVideo.src = `/video-segment/${item.video_id}?start=${startTime}&duration=3`;
-                    previewVideo.play().catch(e => console.warn('Preview autoplay blocked:', e));
-                }, 1000);
+            resultElement.addEventListener('mouseenter', () => {
+                // Delay 400ms để tránh load rác khi lướt nhanh
+                hoverTimeout = setTimeout(() => {
+                    const videoId = item.video_id;
+                    const videoFps = item.fps || 25; 
+                    
+                    // TÍNH TOÁN THỜI GIAN START
+                    // Công thức: (Keyframe Index / FPS) - 1.5 giây (để xem ngữ cảnh trước đó)
+                    const startTime = Math.max(0, item.keyframe_index / videoFps - 1.5);
+
+                    const hlsUrl = `/hls/${videoId}/playlist.m3u8`;
+
+                    if (Hls.isSupported()) {
+                        cleanupHls(); 
+                        hls = new Hls({
+                            startPosition: startTime, // Nhảy ngay tới giây cần xem
+                            capLevelToPlayerSize: true, 
+                            autoStartLoad: true,
+                            maxBufferLength: 5, // Buffer ít cho nhẹ RAM
+                        });
+                        
+                        hls.loadSource(hlsUrl);
+                        hls.attachMedia(previewVideo);
+                        
+                        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                            const playPromise = previewVideo.play();
+                            if (playPromise !== undefined) {
+                                playPromise.catch(error => {});
+                            }
+                        });
+                    }
+                    else if (previewVideo.canPlayType('application/vnd.apple.mpegurl')) {
+                        previewVideo.src = hlsUrl;
+                        previewVideo.currentTime = startTime;
+                        previewVideo.play();
+                    }
+                }, 400); 
             });
 
             resultElement.addEventListener('mouseleave', () => {
                 clearTimeout(hoverTimeout);
-                previewVideo.pause();
-                previewVideo.src = ''; 
+                cleanupHls(); 
             });
+
             resultsContainer.appendChild(resultElement);
         });
     }
-
-    // --- SỬA LOGIC OPEN MODAL ĐỂ NHẬN FPS ---
+    
     function openModal(videoId, startTime, fps) {
         closeModal();
         modalVideoTitle.textContent = `Playing: ${videoId} (FPS: ${fps})`;
