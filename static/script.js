@@ -1,3 +1,4 @@
+// This file now is for backup
 document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
     const searchForm = document.getElementById('search-form');
