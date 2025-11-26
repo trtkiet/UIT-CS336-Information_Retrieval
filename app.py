@@ -5,6 +5,7 @@ from retrieval_system import VideoRetrievalSystem
 import config
 import subprocess
 import traceback
+from utils.video_metadata import load_video_metadata 
 
 log_file = "system.log"
 logging.basicConfig(
@@ -12,11 +13,14 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] - %(message)s",
     handlers=[
         logging.FileHandler(log_file),
+        logging.StreamHandler() 
     ]
 )
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+VIDEO_METADATA = load_video_metadata(config.VIDEOS_DIR)
 
 try:
     search_system = VideoRetrievalSystem(re_ingest=False)
@@ -32,10 +36,6 @@ def home():
 
 @app.route('/search', methods=['POST'])
 def search_api():
-    """
-    The core API endpoint.  
-    It receives the query data, calls the search system, and returns results.
-    """
     if not search_system:
         return jsonify({"error": "Search system is not available."}), 500
 
@@ -48,25 +48,33 @@ def search_api():
     try:
         description = query_data.get('description', '')
         result_sets = []
+        
+        # 1. Search Text/CLIP
         if description:
             clip_results = search_system.clip_search(description, max_results=500)
             result_sets.append(clip_results)
     
+        # 2. Search Objects
         if query_data.get('objects'):
             object_results = search_system.object_search(
                 query_data['objects'], projection={'video_id': 1, 'keyframe_index': 1}
             )
             result_sets.append(object_results)
 
+        # 3. Search Transcript
         transcript_text = query_data.get('transcript') or query_data.get('audio')
         if transcript_text:
             transcript_results = search_system.transcript_search(transcript_text)
             result_sets.append(transcript_results)
 
-        # if len(result_sets) == 1:
-        #     return jsonify(clip_results)
-
+        # Giao các tập kết quả
         results = search_system.intersect(result_sets)
+        
+        for item in results:
+            vid = item.get('video_id')
+            # Lấy FPS từ Cache RAM, mặc định 25 nếu không tìm thấy
+            item['fps'] = VIDEO_METADATA.get(vid, 25.0)
+
         logger.info(f"Search completed. Number of results: {len(results)}")
         return jsonify(results)
     except Exception as e:
@@ -79,7 +87,6 @@ def serve_frame_image(video_id, keyframe_index):
         keyframe_dir = os.path.join(config.KEYFRAMES_DIR, video_id)
         filename = f"keyframe_{keyframe_index}.webp"
         return send_from_directory(keyframe_dir, filename)
-        
     except FileNotFoundError:
         return send_from_directory('static', 'placeholder.png'), 404
 
@@ -87,12 +94,7 @@ def serve_frame_image(video_id, keyframe_index):
 def serve_video_file(video_id):
     try:
         filename = f"{video_id}.mp4" 
-        
-        return send_from_directory(
-            config.VIDEOS_DIR, 
-            filename,
-            as_attachment=False 
-        )
+        return send_from_directory(config.VIDEOS_DIR, filename, as_attachment=False)
     except FileNotFoundError:
         return "Video not found", 404
 
@@ -100,9 +102,7 @@ def serve_video_file(video_id):
 def serve_video_segment(video_id):
     """
     API trả về đoạn video ngắn để preview.
-    :param video_id
-    Sử dụng query param: ?start=5&duration=3
-    :return: đoạn video theo duration
+    Sử dụng ffmpeg cắt video dựa trên start time.
     """
     try:
         start_time = request.args.get('start', '0')
@@ -117,12 +117,13 @@ def serve_video_segment(video_id):
             "-ss", start_time,
             "-i", video_path,
             "-t", duration,
-            "-c", "copy",
+            "-c", "copy",       # Copy stream để nhanh nhất, không encode lại
             "-f", "mp4",
             "-movflags", "frag_keyframe+empty_moov",
             "pipe:1"
         ]
 
+        # Log lỗi ffmpeg nếu cần debug
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
         def generate():

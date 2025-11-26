@@ -1,5 +1,6 @@
 import logging
 import os
+import cv2  # Import thư viện OpenCV để đọc metadata video
 from pathlib import Path
 
 import numpy as np
@@ -17,7 +18,28 @@ from utils.elasticsearch_client import (
 )
 
 BULK_CHUNK_SIZE = 2000
+logger = logging.getLogger(__name__)
 
+# --- Helper Functions ---
+
+def get_video_fps(video_id: str) -> float:
+    """
+    Lấy FPS thực tế của video dựa trên ID.
+    Nếu không tìm thấy hoặc lỗi, trả về giá trị mặc định 25.0.
+    """
+    video_path = os.path.join(config.VIDEOS_DIR, f"{video_id}.mp4")
+    if os.path.exists(video_path):
+        try:
+            cap = cv2.VideoCapture(video_path)
+            if cap.isOpened():
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                cap.release()
+                if fps and fps > 0:
+                    return float(fps)
+        except Exception as e:
+            logger.warning(f"Error reading FPS for {video_id}: {e}")
+            
+    return 25.0  # Fallback default value
 
 def _load_keyframe_map(video_id: str):
     maps_dir = Path(config.KEYFRAMES_DIR) / "maps"
@@ -56,7 +78,8 @@ def _resolve_frames_from_map(mapping, target_seconds: np.ndarray):
 
     return frame_ids[best_idx].astype(int), seconds[best_idx].astype(float)
 
-logger = logging.getLogger(__name__)
+
+# --- Ingestion Functions ---
 
 def setup_milvus_collection(collection_name, schema, index_field, index_params):
     if utility.has_collection(collection_name):
@@ -75,35 +98,43 @@ def setup_milvus_collection(collection_name, schema, index_field, index_params):
 def ingest_keyframe_data(collection: Collection):
     logger.info("Ingesting keyframe data into Milvus...")
     root = Path(config.CLIP_FEATURES_DIR)
+    
+    # Kiểm tra thư mục embedding có tồn tại không
+    if not root.exists():
+        logger.error(f"Embeddings directory not found: {root}")
+        return
+
     for video_path in list(root.iterdir()):
+        if not video_path.is_dir():
+            continue
+            
         video_id = video_path.name
         vectors = []
         frame_indices = []
+        
         for pt_file in list(video_path.glob("*.pt")):
-            frame_idx = int(pt_file.stem.split("_")[-1])
-            vec = torch.load(str(pt_file), map_location="cpu").numpy().astype(np.float32)
-            vec = vec.reshape(1, -1)
-            vectors.append(vec)
-            frame_indices.append(frame_idx)
-        vectors = np.vstack(vectors)
-        num_vectors = len(vectors)
-        entities = [[video_id] * num_vectors, frame_indices, vectors]
-        collection.insert(entities)
+            try:
+                frame_idx = int(pt_file.stem.split("_")[-1])
+                vec = torch.load(str(pt_file), map_location="cpu").numpy().astype(np.float32)
+                vec = vec.reshape(1, -1)
+                vectors.append(vec)
+                frame_indices.append(frame_idx)
+            except Exception as e:
+                logger.error(f"Error processing {pt_file}: {e}")
+                continue
+
+        if vectors:
+            vectors = np.vstack(vectors)
+            num_vectors = len(vectors)
+            entities = [[video_id] * num_vectors, frame_indices, vectors]
+            collection.insert(entities)
+            
     collection.flush()
     logger.info("Keyframe data ingestion complete.")
 
 def setup_mongodb_collection(mongo_client, db_name, collection_name, drop_existing=True):
     """
     Setup MongoDB collection for object detection metadata.
-    
-    Args:
-        mongo_client: MongoClient instance
-        db_name: Database name
-        collection_name: Collection name
-        drop_existing: If True, drop existing collection
-    
-    Returns:
-        MongoDB collection instance
     """
     db = mongo_client[db_name]
     
@@ -145,7 +176,13 @@ def ingest_object_detection_data(mongo_collection, folder_path):
 
                 bulk_operations = []
                 for frame_index, group in grouped:
-                    frame_index = int(frame_index.replace("keyframe_", "").replace(".webp", ""))
+                    # Clean frame index string
+                    frame_idx_str = str(frame_index).replace("keyframe_", "").replace(".webp", "")
+                    try:
+                        frame_idx_int = int(frame_idx_str)
+                    except ValueError:
+                        continue
+
                     objects_list = group.apply(
                         lambda row: {
                             'class': row['class'],
@@ -159,19 +196,23 @@ def ingest_object_detection_data(mongo_collection, folder_path):
                         },
                         axis=1
                     ).tolist()
+                    
                     bulk_operations.append(
                         UpdateOne(
-                            {"video_id": video_id, "keyframe_index": int(frame_index)},
+                            {"video_id": video_id, "keyframe_index": frame_idx_int},
                             {"$set": {"objects": objects_list}},
                             upsert=True
                         )
                     )
 
-                logger.info(f"Executing bulk upsert for {len(bulk_operations)} frames for video_id '{video_id}'...")
-                result = mongo_collection.bulk_write(bulk_operations)
-                logger.info(f"Insert/Update complete for '{video_id}'. Inserted: {result.upserted_count}, Updated: {result.modified_count}\n")
+                if bulk_operations:
+                    logger.info(f"Executing bulk upsert for {len(bulk_operations)} frames for video_id '{video_id}'...")
+                    result = mongo_collection.bulk_write(bulk_operations)
+                    logger.info(f"Insert/Update complete for '{video_id}'. Inserted: {result.upserted_count}, Updated: {result.modified_count}\n")
+            
             except Exception as e:
                 logger.error(f"An error occurred while processing {full_path}: {e}")
+    
     logger.info(f"Object detection data ingestion complete.")
     
 def ingest_transcript_data(es_client: Elasticsearch, folder_path: str) -> None:
@@ -187,12 +228,17 @@ def ingest_transcript_data(es_client: Elasticsearch, folder_path: str) -> None:
         logger.warning("No transcript CSV files found.")
         return
 
-    fps = config.VIDEO_FPS
+    # Biến để đếm tổng số docs đã ingest
     total_docs = 0
     map_cache: dict[str, tuple[np.ndarray, np.ndarray] | None] = {}
 
     for csv_path in csv_files:
         video_id = csv_path.stem
+        
+        # --- CẬP NHẬT: Lấy FPS thực tế thay vì dùng config cứng ---
+        fps = get_video_fps(video_id)
+        # --------------------------------------------------------
+
         try:
             df = pd.read_csv(csv_path)
         except Exception as exc:
@@ -216,6 +262,7 @@ def ingest_transcript_data(es_client: Elasticsearch, folder_path: str) -> None:
         end_secs = np.where(np.isnan(end_secs), start_secs, end_secs)
         end_secs = np.maximum(end_secs, start_secs)
 
+        # Tính toán frame dựa trên FPS thực tế của từng video
         start_frames = np.maximum(0, np.rint(start_secs * fps).astype(np.int32))
 
         if video_id not in map_cache:
@@ -224,6 +271,8 @@ def ingest_transcript_data(es_client: Elasticsearch, folder_path: str) -> None:
 
         resolved_frames = start_frames
         resolved_starts = start_secs
+        
+        # Nếu có map, cố gắng khớp với keyframe có sẵn
         if frame_map:
             resolved = _resolve_frames_from_map(frame_map, start_secs)
             if resolved[0] is not None:
@@ -261,8 +310,16 @@ def ingest_transcript_data(es_client: Elasticsearch, folder_path: str) -> None:
     logger.info(f"Transcript ingestion complete. Total documents: {total_docs}")
 
 def main():
+    # Cấu hình logging để hiện ra console khi chạy trực tiếp
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] - %(message)s",
+        handlers=[logging.StreamHandler()]
+    )
+
+    # --- Elasticsearch Ingestion ---
     es_client = get_elasticsearch_client()
-    recreate_transcript_index(es_client)
+    recreate_transcript_index(es_client) # Xóa index cũ và tạo lại
     ingest_transcript_data(es_client, config.TRANSCRIPTS_DIR)
 
     # --- Milvus Ingestion ---
@@ -285,7 +342,7 @@ def main():
         mongo_client,
         config.MONGO_DB_NAME,
         config.MONGO_OBJECT_COLLECTION,
-        drop_existing=True
+        drop_existing=True # Xóa collection cũ
     )
     ingest_object_detection_data(object_collection, folder_path=config.OBJECT_DETECTION_DIR)
 
@@ -293,3 +350,6 @@ def main():
 
     # Close connections
     mongo_client.close()
+
+if __name__ == "__main__":
+    main()
