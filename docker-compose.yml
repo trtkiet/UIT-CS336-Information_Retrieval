@@ -60,7 +60,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-
+ 
+  mongo:
+      image: mongo:latest
+      container_name: mongo
+      ports:
+        - "27017:27017"
+      volumes:
+        - ./volumes/mongo_data:/data/db
 networks:
   default:
     name: milvus-es-net
