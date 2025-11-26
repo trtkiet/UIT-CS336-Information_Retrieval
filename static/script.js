@@ -1,7 +1,5 @@
-// File: static/script.js
-
 document.addEventListener('DOMContentLoaded', () => {
-    // ... (Giữ nguyên phần khai báo DOM elements như cũ) ...
+    // DOM Elements
     const searchForm = document.getElementById('search-form');
     const toggleFiltersBtn = document.getElementById('toggle-filters-btn');
     const advancedFilters = document.getElementById('advanced-filters');
@@ -13,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const objectConfidence = document.getElementById('object-confidence');
     const resultsContainer = document.getElementById('results-container');
     const sortBySelect = document.getElementById('sort-by-select');
+
     // Elements for the Video Modal
     const modalOverlay = document.getElementById('video-modal');
     const closeModalBtn = document.getElementById('close-modal-btn');
@@ -21,10 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentResults = [];
 
-    // ... (Giữ nguyên các Event Listeners cho Search Form, Filter, Sort) ...
-
+    // --- SEARCH FORM HANDLER ---
     searchForm.addEventListener('submit', (e) => {
-        // (Giữ nguyên code submit form cũ)
         e.preventDefault();
         const formData = new FormData(searchForm);
         const query_data = {
@@ -32,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
             objects: [],
             audio: formData.get('audio')
         };
+
         document.querySelectorAll('.object-item').forEach(item => {
             const objectQuery = {
                 label: item.getAttribute('data-label'),
@@ -44,40 +42,45 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             query_data.objects.push(objectQuery);
         });
+
         performSearch(query_data);
     });
-    
+
     sortBySelect.addEventListener('change', () => {
         displayResults(currentResults);
     });
 
+    // --- UI TOGGLES ---
     toggleFiltersBtn.addEventListener('click', () => {
         advancedFilters.classList.toggle('hidden');
         toggleFiltersBtn.textContent = advancedFilters.classList.contains('hidden') ? '▼ Advanced Filters' : '▲ Hide Filters';
     });
 
     addObjectBtn.addEventListener('click', () => {
-         // (Giữ nguyên code thêm object)
         const label = objectSelect.value;
         const min = objectMin.value;
         const max = objectMax.value;
         const confidence = objectConfidence.value;
+
         if (document.querySelector(`.object-item[data-label="${label}"]`)) {
             alert('Object already added.');
             return;
         }
+
         const objectItem = document.createElement('div');
         objectItem.classList.add('object-item');
         objectItem.setAttribute('data-label', label);
         objectItem.setAttribute('data-min', min);
         objectItem.setAttribute('data-max', max);
         objectItem.setAttribute('data-confidence', confidence);
+
         let countText;
         if (!max || max.trim() === '') {
             countText = `Count: >= ${min}`;
         } else {
             countText = `Count: [${min}, ${max}]`;
         }
+
         objectItem.innerHTML = `<span>${label} (Confidence: >= ${confidence}, ${countText})</span><button type="button" class="remove-obj-btn">X</button>`;
         objectList.appendChild(objectItem);
     });
@@ -88,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- SỬA LỖI CLICK EVENT ---
+    // --- RESULT CLICK HANDLER ---
     resultsContainer.addEventListener('click', (e) => {
         const resultItem = e.target.closest('.result-item');
 
@@ -96,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const videoId = resultItem.dataset.videoId;
             const keyframeIndex = parseInt(resultItem.dataset.keyframeIndex);
             // Lấy FPS từ dataset đã được render
-            const fps = parseFloat(resultItem.dataset.fps) || 25; 
+            const fps = parseFloat(resultItem.dataset.fps) || 25;
 
             if (!videoId || isNaN(keyframeIndex)) return;
 
@@ -104,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let startTime = keyframeIndex / fps;
             startTime = Math.max(0, startTime - 0.5); // Lùi lại 0.5s để lấy ngữ cảnh
 
-            openModal(videoId, startTime, fps); // Truyền FPS vào modal
+            openModal(videoId, startTime, fps);
         }
     });
 
@@ -115,19 +118,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ... (Giữ nguyên performSearch) ...
+    // --- API SEARCH ---
     async function performSearch(query_data) {
         resultsContainer.innerHTML = '<p>Searching...</p>';
         try {
             const response = await fetch('/search', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(query_data)
             });
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
+
             const results = await response.json();
             currentResults = results;
             displayResults(currentResults);
@@ -138,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- SỬA LOGIC DISPLAY RESULTS ---
+    // --- DISPLAY RESULTS ---
     function displayResults(results) {
         if (!results || results.length === 0) {
             resultsContainer.innerHTML = '<p>No results found.</p>';
@@ -147,9 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const sortBy = sortBySelect.value;
         const sortedResults = [...results]; 
+        // Logic sort ở đây (hiện tại server trả về đã sort hoặc giữ nguyên)
 
         resultsContainer.innerHTML = '';
-        
         sortedResults.forEach(item => {
             const resultElement = document.createElement('div');
             resultElement.classList.add('result-item');
@@ -157,7 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // --- LƯU METADATA ---
             resultElement.dataset.videoId = item.video_id;
             resultElement.dataset.keyframeIndex = item.keyframe_index;
-            // Lấy FPS gốc từ server trả về (quan trọng để tính time chính xác)
             resultElement.dataset.fps = item.fps; 
 
             resultElement.style.cursor = 'pointer';
@@ -167,10 +171,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const previewContainer = document.createElement('div');
             previewContainer.classList.add('hover-preview');
 
-            // Tạo thẻ video
+            // Tạo thẻ video cho hover preview ở trang chủ
             const previewVideo = document.createElement('video');
-            previewVideo.muted = true; // Bắt buộc mute
-            previewVideo.playsInline = true; 
+            previewVideo.muted = true; 
+            previewVideo.playsInline = true;
             previewVideo.style.width = "100%";
             previewVideo.style.height = "100%";
             previewVideo.style.objectFit = "cover";
@@ -194,45 +198,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
             `;
-            
             previewContainer.appendChild(previewVideo);
             resultElement.insertBefore(previewContainer, resultElement.firstChild);
 
-            // --- LOGIC HLS HOVER ---
+            // --- LOGIC HLS HOVER (Trang chủ) ---
             let hls = null;
             let hoverTimeout;
-            
+
             const cleanupHls = () => {
                 if (hls) {
                     hls.destroy();
                     hls = null;
                 }
                 previewVideo.pause();
-                previewVideo.removeAttribute('src'); 
+                previewVideo.removeAttribute('src');
                 previewVideo.load();
             };
 
             resultElement.addEventListener('mouseenter', () => {
-                // Delay 400ms để tránh load rác khi lướt nhanh
                 hoverTimeout = setTimeout(() => {
                     const videoId = item.video_id;
-                    const videoFps = item.fps || 25; 
-                    
-                    // TÍNH TOÁN THỜI GIAN START
-                    // Công thức: (Keyframe Index / FPS) - 1.5 giây (để xem ngữ cảnh trước đó)
+                    const videoFps = item.fps || 25;
                     const startTime = Math.max(0, item.keyframe_index / videoFps - 1.5);
-
                     const hlsUrl = `/hls/${videoId}/playlist.m3u8`;
 
                     if (Hls.isSupported()) {
-                        cleanupHls(); 
+                        cleanupHls();
                         hls = new Hls({
-                            startPosition: startTime, // Nhảy ngay tới giây cần xem
-                            capLevelToPlayerSize: true, 
+                            startPosition: startTime,
+                            capLevelToPlayerSize: true,
                             autoStartLoad: true,
-                            maxBufferLength: 5, // Buffer ít cho nhẹ RAM
+                            maxBufferLength: 5,
                         });
-                        
                         hls.loadSource(hlsUrl);
                         hls.attachMedia(previewVideo);
                         
@@ -248,23 +245,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         previewVideo.currentTime = startTime;
                         previewVideo.play();
                     }
-                }, 400); 
+                }, 400);
             });
 
             resultElement.addEventListener('mouseleave', () => {
                 clearTimeout(hoverTimeout);
-                cleanupHls(); 
+                cleanupHls();
             });
-
             resultsContainer.appendChild(resultElement);
         });
     }
-    
+
+    // --- MODAL PLAYER LOGIC ---
     function openModal(videoId, startTime, fps) {
         closeModal();
         modalVideoTitle.textContent = `Playing: ${videoId} (FPS: ${fps})`;
-        
-        // Thời gian start chính xác
+
+        // Main player dùng MP4 (để seek chính xác mượt mà hơn cho main content nếu cần)
+        // Hoặc có thể đổi sang HLS luôn nếu muốn thống nhất. Hiện tại giữ nguyên MP4 cho main player.
         const videoUrl = `/videos/${videoId}#t=${startTime}`;
         modalVideoPlayer.src = videoUrl;
         modalOverlay.classList.remove('hidden');
@@ -274,9 +272,9 @@ document.addEventListener('DOMContentLoaded', () => {
             videoWrapper.style.position = 'relative';
         }
 
+        // Timeline Bar
         const timelineBar = document.createElement('div');
         timelineBar.classList.add('video-timeline');
-        // ... (Style timelineBar giữ nguyên) ...
         timelineBar.style.position = 'relative';
         timelineBar.style.height = '8px';
         timelineBar.style.background = '#444';
@@ -284,7 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
         timelineBar.style.cursor = 'pointer';
 
         const progressFill = document.createElement('div');
-        // ... (Style progressFill giữ nguyên) ...
         progressFill.style.position = 'absolute';
         progressFill.style.left = '0';
         progressFill.style.top = '0';
@@ -294,16 +291,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         timelineBar.appendChild(progressFill);
 
+        // Timeline Thumbnail Preview Wrapper
         const timelinePreview = document.createElement('div');
         timelinePreview.classList.add('timeline-preview');
-        // ... (Style timelinePreview giữ nguyên) ...
         timelinePreview.style.display = 'none';
         timelinePreview.style.position = 'absolute';
-        timelinePreview.style.bottom = '120%'; 
+        timelinePreview.style.bottom = '120%';
         timelinePreview.style.transform = 'translateX(-50%)';
         timelinePreview.style.zIndex = '999';
         timelinePreview.style.pointerEvents = 'none';
-        
         timelinePreview.innerHTML = `
         <img src="" alt="Preview" style="max-width: 150px; border: 1px solid #fff; display:none;">
         <div class="time-label" style="background: rgba(0,0,0,0.7); color: #fff; padding: 2px 5px; text-align: center;">0:00</div>
@@ -312,14 +308,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const previewImg = timelinePreview.querySelector('img');
         const timeLabel = timelinePreview.querySelector('.time-label');
+        
+        // --- FIX STARTS HERE: PREVIEW VIDEO FOR TIMELINE USING HLS ---
+        // Tạo một video element ẩn để chuyên phục vụ việc render thumbnail
         const previewVideo = document.createElement('video');
-        previewVideo.src = `/videos/${videoId}`;
         previewVideo.muted = true;
-        previewVideo.preload = 'metadata';
+        previewVideo.preload = 'metadata'; // Chỉ cần metadata
         previewVideo.style.display = 'none';
         videoWrapper.appendChild(previewVideo);
 
-        // Canvas logic (giữ nguyên)
+        // Setup HLS cho Preview Video (Đây là phần fix quan trọng)
+        const hlsUrl = `/hls/${videoId}/playlist.m3u8`;
+        let previewHls = null;
+
+        if (Hls.isSupported()) {
+            previewHls = new Hls({
+                // Tối ưu cho việc seek nhanh để lấy ảnh
+                maxBufferLength: 1, 
+                maxMaxBufferLength: 2,
+                enableWorker: true
+            });
+            previewHls.loadSource(hlsUrl);
+            previewHls.attachMedia(previewVideo);
+        } else if (previewVideo.canPlayType('application/vnd.apple.mpegurl')) {
+            // Fallback cho Safari
+            previewVideo.src = hlsUrl;
+        } else {
+            // Fallback cùng cực nếu không hỗ trợ HLS thì dùng MP4 (nhưng sẽ chậm)
+            previewVideo.src = `/videos/${videoId}`;
+        }
+        // --- END FIX ---
+
+        // Canvas để vẽ lại frame từ video ẩn
         const previewCanvas = document.createElement('canvas');
         const previewCtx = previewCanvas.getContext('2d');
         let hoverTargetTime = null;
@@ -327,56 +347,71 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const runHoverPreview = () => {
             hoverScheduled = false;
-            if (hoverTargetTime === null || !previewVideo.duration) return;
+            // Dùng duration của main player làm tham chiếu, nhưng seek trên previewVideo
+            if (hoverTargetTime === null || !modalVideoPlayer.duration) return;
             const targetTime = hoverTargetTime;
             hoverTargetTime = null;
 
             const video = previewVideo;
+            
+            // Logic: Khi seek xong (HLS đã tải được segment .ts và decode xong frame) -> Vẽ
             const onSeeked = () => {
-                if (hoverTargetTime !== null && Math.abs(video.currentTime - targetTime) > 0.1) return;
+                // Kiểm tra xem lần seek này có khớp với cái mới nhất không (tránh race condition)
+                if (Math.abs(video.currentTime - targetTime) > 0.5) return;
+                
                 const vw = video.videoWidth || video.clientWidth;
                 const vh = video.videoHeight || video.clientHeight;
                 if (!vw || !vh) return;
+
                 previewCanvas.width = vw;
                 previewCanvas.height = vh;
                 try {
                     previewCtx.drawImage(video, 0, 0, vw, vh);
-                    const dataUrl = previewCanvas.toDataURL('image/jpeg', 0.7);
+                    const dataUrl = previewCanvas.toDataURL('image/jpeg', 0.6); // Chất lượng thấp cho nhanh
                     previewImg.style.display = 'block';
                     previewImg.src = dataUrl;
                 } catch (err) {
                     previewImg.style.display = 'none';
                 }
             };
-            video.addEventListener('seeked', onSeeked, {once: true});
+
+            video.removeEventListener('seeked', onSeeked); // Xóa listener cũ nếu có
+            video.addEventListener('seeked', onSeeked, { once: true });
+            
+            // Lệnh này sẽ kích hoạt HLS tải đúng file .ts chứa giây này
             video.currentTime = targetTime;
         };
 
         const scheduleHoverPreview = () => {
             if (!hoverScheduled) {
                 hoverScheduled = true;
-                setTimeout(runHoverPreview, 80);
+                // Debounce nhẹ
+                setTimeout(runHoverPreview, 50);
             }
         };
 
         const handleMouseMove = (e) => {
-             // (Logic hover giữ nguyên)
-            if (!previewVideo.duration) return;
+            // Lấy duration từ Main Player (vì MP4 load metadata nhanh hơn và chính xác tổng thời lượng)
+            if (!modalVideoPlayer.duration) return;
+            
             const rect = timelineBar.getBoundingClientRect();
             const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-            const hoverTime = percent * previewVideo.duration;
+            const hoverTime = percent * modalVideoPlayer.duration;
+
             timelinePreview.style.display = 'block';
             let previewLeft = percent * rect.width - (timelinePreview.offsetWidth / 2);
             previewLeft = Math.max(0, Math.min(previewLeft, rect.width - timelinePreview.offsetWidth));
+            
             timelinePreview.style.left = `${percent * 100}%`;
+
             const minutes = Math.floor(hoverTime / 60);
             const seconds = Math.floor(hoverTime % 60);
             timeLabel.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
             hoverTargetTime = hoverTime;
             scheduleHoverPreview();
         };
 
-        // ... (MouseLeave, Click handler giữ nguyên) ...
         const handleMouseLeave = () => {
             timelinePreview.style.display = 'none';
             hoverTargetTime = null;
@@ -402,10 +437,9 @@ document.addEventListener('DOMContentLoaded', () => {
         modalVideoPlayer.addEventListener('timeupdate', updateProgress);
         videoWrapper.appendChild(timelineBar);
 
+        // --- Frame Controls ---
         const frameControls = document.createElement('div');
         frameControls.classList.add('frame-controls');
-        // ... (Style frameControls giữ nguyên) ...
-        frameControls.style.marginTop = '10px';
         frameControls.style.display = 'flex';
         frameControls.style.justifyContent = 'center';
         frameControls.style.gap = '15px';
@@ -420,9 +454,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const prevBtn = document.getElementById('prev-frame-btn');
         const nextBtn = document.getElementById('next-frame-btn');
         const frameInfo = document.getElementById('current-frame-info');
-
-        // --- QUAN TRỌNG: Sử dụng FPS động ---
-        const frameRate = fps; 
+        
+        // Sử dụng FPS động
+        const frameRate = fps;
         const frameDuration = 1 / frameRate;
 
         const updateFrameInfo = () => {
@@ -443,7 +477,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentFrame = Math.floor(modalVideoPlayer.currentTime * frameRate);
             modalVideoPlayer.currentTime = Math.max(0, (currentFrame - 1) * frameDuration);
         };
-
         const handleNextFrame = () => {
             modalVideoPlayer.pause();
             const currentFrame = Math.floor(modalVideoPlayer.currentTime * frameRate);
@@ -465,6 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         document.addEventListener('keydown', handleKeyPress);
 
+        // Lưu handlers để cleanup
         modalOverlay.dataset.handlersAttached = 'true';
         modalOverlay._cleanupHandlers = {
             handleKeyPress,
@@ -476,14 +510,16 @@ document.addEventListener('DOMContentLoaded', () => {
             timelinePreview,
             frameControls,
             timelineBar,
-            previewVideo
+            previewVideo,
+            previewHls // Lưu instance HLS để destroy
         };
+
         modalVideoPlayer.play().catch(err => console.warn('Autoplay prevented:', err));
     }
 
-    // ... (Giữ nguyên closeModal) ...
-     function closeModal() {
+    function closeModal() {
         if (modalOverlay.classList.contains('hidden')) return;
+
         if (modalOverlay.dataset.handlersAttached === 'true') {
             const h = modalOverlay._cleanupHandlers;
             if (h) {
@@ -497,13 +533,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 modalVideoPlayer.removeEventListener('timeupdate', h.updateFrameInfo);
                 modalVideoPlayer.removeEventListener('timeupdate', h.updateProgress);
                 modalVideoPlayer.removeEventListener('loadedmetadata', h.updateFrameInfo);
+                
                 if (h.timelinePreview) h.timelinePreview.remove();
                 if (h.frameControls) h.frameControls.remove();
-                if (h.previewVideo) h.previewVideo.remove();
+                
+                // Cleanup HLS và Preview Video
+                if (h.previewHls) {
+                    h.previewHls.destroy();
+                }
+                if (h.previewVideo) {
+                    h.previewVideo.removeAttribute('src');
+                    h.previewVideo.load();
+                    h.previewVideo.remove();
+                }
             }
             delete modalOverlay._cleanupHandlers;
             delete modalOverlay.dataset.handlersAttached;
         }
+
         modalOverlay.classList.add('hidden');
         modalVideoPlayer.pause();
         modalVideoPlayer.src = '';
