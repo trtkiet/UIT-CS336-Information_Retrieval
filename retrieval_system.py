@@ -7,6 +7,8 @@ from pymongo import MongoClient
 import config
 from utils.elasticsearch_client import get_elasticsearch_client
 from utils.text_encoder import TextEncoder
+from bson import json_util
+import json
 
 # --- Setup Logging ---
 logger = logging.getLogger(__name__)
@@ -150,7 +152,7 @@ class VideoRetrievalSystem:
             
             results = list(self.object_collection.aggregate(pipeline))
             logger.info(f"MongoDB: Found {len(results)} keyframes matching queries.")
-            return results
+            return json.loads(json_util.dumps(results))
             
         except Exception as e:
             logger.error(f"An error occurred during object search: {e}")
