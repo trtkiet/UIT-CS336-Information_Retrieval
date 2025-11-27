@@ -3,6 +3,7 @@ import os
 import subprocess
 import traceback
 
+import requests
 from flask import (
     Flask,
     Response,
@@ -123,6 +124,118 @@ def serve_hls(video_id, filename):
         return response
     except FileNotFoundError:
         return "File not found", 404
+
+
+@app.route("/api/login", methods=["POST"])
+def login_proxy():
+    """
+    Thực hiện Login và lấy luôn Evaluation ID
+    """
+    try:
+        # 1. Login
+        login_url = f"{config.EVAL_SERVER_URL}/api/v2/login"
+        creds = request.get_json() or {}
+        username = creds.get("username", config.EVAL_USERNAME)
+        password = creds.get("password", config.EVAL_PASSWORD)
+
+        login_resp = requests.post(
+            login_url, json={"username": username, "password": password}, verify=False
+        )
+        if login_resp.status_code != 200:
+            return (
+                jsonify(
+                    {
+                        "error": "Login failed on remote server",
+                        "details": login_resp.text,
+                    }
+                ),
+                401,
+            )
+
+        session_id = login_resp.json().get("sessionId")
+
+        # 2. Get Evaluation List
+        list_url = f"{config.EVAL_SERVER_URL}/api/v2/client/evaluation/list"
+        list_resp = requests.get(list_url, params={"session": session_id})
+
+        if list_resp.status_code != 200:
+            return (
+                jsonify(
+                    {
+                        "error": "Failed to get evaluation list",
+                        "details": list_resp.text,
+                    }
+                ),
+                400,
+            )
+
+        eval_list = list_resp.json()
+        if not eval_list:
+            return jsonify({"error": "No evaluations found"}), 404
+
+        # Lấy evaluation ID đầu tiên (theo logic submit.py mẫu)
+        evaluation_id = eval_list[0]["id"]
+
+        return jsonify(
+            {
+                "message": "Login successful",
+                "sessionId": session_id,
+                "evaluationId": evaluation_id,
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Login proxy error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/submit", methods=["POST"])
+def submit_proxy():
+    """
+    Gửi kết quả submit
+    """
+    try:
+        data = request.get_json()
+        session_id = data.get("sessionId")
+        evaluation_id = data.get("evaluationId")
+        video_id = data.get("videoId")
+        time_ms = data.get("timeMs")  # Thời gian tính bằng milliseconds
+
+        if not all([session_id, evaluation_id, video_id, time_ms is not None]):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        submit_url = f"{config.EVAL_SERVER_URL}/api/v2/submit/{evaluation_id}"
+
+        payload = {
+            "answerSets": [
+                {
+                    "answers": [
+                        {
+                            "mediaItemName": video_id,
+                            "start": str(int(time_ms)),
+                            "end": str(int(time_ms)),
+                        }
+                    ]
+                }
+            ]
+        }
+
+        # Gửi request lên server đánh giá
+        response = requests.post(
+            submit_url, json=payload, params={"session": session_id}
+        )
+
+        if response.status_code == 200:
+            return jsonify({"success": True, "remote_response": response.json()})
+        else:
+            return (
+                jsonify({"success": False, "error": response.text}),
+                response.status_code,
+            )
+
+    except Exception as e:
+        logger.error(f"Submit proxy error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":

@@ -1,4 +1,7 @@
 import { elements } from "./elements.js";
+import { submitResultAPI } from "./api.js";
+
+let currentOpenVideoId = null;
 
 export function initVideoModal() {
   elements.closeModalBtn.addEventListener("click", closeModal);
@@ -7,10 +10,49 @@ export function initVideoModal() {
       closeModal();
     }
   });
+
+  // --- SỰ KIỆN NÚT SUBMIT TRONG MODAL ---
+  if (elements.modalSubmitBtn) {
+    elements.modalSubmitBtn.addEventListener("click", async () => {
+      if (!currentOpenVideoId) return;
+
+      const sessionId = localStorage.getItem("sessionId");
+      const evaluationId = localStorage.getItem("evaluationId");
+
+      if (!sessionId || !evaluationId) {
+        alert("Please LOGIN first!");
+        return;
+      }
+
+      // Lấy thời gian hiện tại của player
+      const currentTime = elements.modalVideoPlayer.currentTime;
+      // Chuyển đổi ra ms (Video player trả về giây)
+      // currentTime tương đương với (frame / fps), nên chỉ cần nhân 1000
+      const timeMs = Math.round(currentTime * 1000);
+
+      const confirmSubmit = confirm(
+        `Submit time ${timeMs}ms of video ${currentOpenVideoId}?`,
+      );
+      if (!confirmSubmit) return;
+
+      try {
+        const res = await submitResultAPI(
+          sessionId,
+          evaluationId,
+          currentOpenVideoId,
+          timeMs,
+        );
+        alert(`Success! Server msg: ${JSON.stringify(res.remote_response)}`);
+      } catch (err) {
+        alert(`Submit Failed: ${err.message}`);
+      }
+    });
+  }
 }
 
 export function openModal(videoId, startTime, fps) {
   closeModal(); // Ensure cleanup of previous instance
+  currentOpenVideoId = videoId;
 
   elements.modalVideoTitle.textContent = `Playing: ${videoId} (FPS: ${fps})`;
   const videoUrl = `/videos/${videoId}#t=${startTime}`;
@@ -299,6 +341,8 @@ export function closeModal() {
     delete elements.modalOverlay._cleanupHandlers;
     delete elements.modalOverlay.dataset.handlersAttached;
   }
+
+  currentOpenVideoId = null;
 
   elements.modalOverlay.classList.add("hidden");
   elements.modalVideoPlayer.pause();

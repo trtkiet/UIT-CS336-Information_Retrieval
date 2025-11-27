@@ -1,5 +1,6 @@
 import { elements } from "./elements.js";
 import { openModal } from "./video-player.js";
+import { submitResultAPI } from "./api.js";
 
 export function displayResults(results) {
   if (!results || results.length === 0) {
@@ -109,12 +110,40 @@ export function displayResults(results) {
 
     // --- XỬ LÝ SỰ KIỆN CLICK ---
 
-    // 1. Click nút Submit -> Alert & Chặn mở modal
+    // 1. Click nút Submit trên Card
     const submitBtn = resultElement.querySelector(".card-submit-btn");
-    submitBtn.addEventListener("click", (e) => {
-      e.stopPropagation(); // QUAN TRỌNG: Ngăn sự kiện nổi bọt lên resultElement
-      alert("submited");
-      // Sau này gọi API submit ở đây
+    submitBtn.addEventListener("click", async (e) => {
+      e.stopPropagation(); // Ngăn mở modal
+
+      const sessionId = localStorage.getItem("sessionId");
+      const evaluationId = localStorage.getItem("evaluationId");
+
+      if (!sessionId || !evaluationId) {
+        alert("Please LOGIN first!");
+        return;
+      }
+
+      const confirmSubmit = confirm(
+        `Submit frame ${item.keyframe_index} of video ${item.video_id}?`,
+      );
+      if (!confirmSubmit) return;
+
+      // TÍNH TOÁN THỜI GIAN (MS)
+      // Công thức: (Frame Index / FPS) * 1000
+      const fps = parseFloat(item.fps) || 25.0;
+      const timeMs = Math.round((item.keyframe_index / fps) * 1000);
+
+      try {
+        const res = await submitResultAPI(
+          sessionId,
+          evaluationId,
+          item.video_id,
+          timeMs,
+        );
+        alert(`Success! Server msg: ${JSON.stringify(res.remote_response)}`);
+      } catch (err) {
+        alert(`Submit Failed: ${err.message}`);
+      }
     });
 
     // 2. Click vào vùng còn lại -> Mở Video Modal

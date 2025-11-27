@@ -1,288 +1,393 @@
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f4f7f6;
-    color: #333;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f7f6;
+  color: #333;
 }
 
 /* === HEADER & FORM (KHÔNG CÒN FIXED) === */
 .top-control-panel {
-    position: relative; /* Cuộn theo trang bình thường */
-    width: 100%;
-    background: #fff;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
-    padding: 15px;
-    box-sizing: border-box;
-    display: flex;
-    gap: 20px;
+  position: relative;
+  /* Cuộn theo trang bình thường */
+  width: 100%;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  padding: 15px;
+  box-sizing: border-box;
+  display: flex;
+  gap: 20px;
 }
 
 .left-panel {
-    width: 100%;
-    /* Nếu muốn chia cột sau này thì chỉnh width ở đây */
+  width: 100%;
+  /* Nếu muốn chia cột sau này thì chỉnh width ở đây */
 }
 
 .right-panel {
-    display: none;
+  display: block;
+  display: flex;
+  align-items: center;
 }
 
 /* Form gọn gàng */
 .compact-form {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    max-width: 600px; /* Giới hạn chiều rộng nhìn cho đỡ trải dài quá */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 600px;
+  /* Giới hạn chiều rộng nhìn cho đỡ trải dài quá */
 }
 
 .search-row {
-    display: flex;
-    gap: 5px;
+  display: flex;
+  gap: 5px;
 }
 
 #main-query {
-    flex-grow: 1;
-    padding: 8px;
-    font-size: 14px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+  flex-grow: 1;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
 
-#search-btn, #toggle-filters-btn {
-    padding: 8px 15px;
-    font-size: 14px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    background-color: #0077b6;
-    color: white;
+#search-btn,
+#toggle-filters-btn {
+  padding: 8px 15px;
+  font-size: 14px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: #0077b6;
+  color: white;
 }
 
 #toggle-filters-btn {
-    background-color: #6c757d;
+  background-color: #6c757d;
 }
 
 /* Filters */
 .compact-filters {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    border-top: 1px solid #eee;
-    padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #eee;
+  padding-top: 8px;
 }
 
 .compact-filters.hidden {
-    display: none;
+  display: none;
 }
 
 .filter-row {
-    display: flex;
-    gap: 10px;
-    align-items: center;
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
-.filter-row input, .filter-row select {
-    padding: 6px;
-    font-size: 13px;
-    border: 1px solid #ccc;
-    border-radius: 3px;
+.filter-row input,
+.filter-row select {
+  padding: 6px;
+  font-size: 13px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
 }
 
 #audio-filter {
-    width: 100%;
-    padding: 8px;
+  width: 100%;
+  padding: 8px;
 }
 
 .object-controls input[type="number"] {
-    width: 60px;
+  width: 60px;
 }
 
 #add-object-btn {
-    padding: 6px 12px;
-    background: #28a745;
-    color: white;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
+  padding: 6px 12px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
 }
 
 #object-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
 }
 
 .object-item {
-    font-size: 12px;
-    background: #e9ecef;
-    padding: 4px 8px;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
+  font-size: 12px;
+  background: #e9ecef;
+  padding: 4px 8px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .remove-obj-btn {
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    line-height: 16px;
-    text-align: center;
-    font-size: 10px;
-    cursor: pointer;
-    padding: 0;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
 }
 
 /* === MAIN CONTENT === */
 main {
-    padding: 0 15px 20px 15px;
+  padding: 0 15px 20px 15px;
 }
 
 #results-container {
-    display: grid;
-    /* Grid tự động: tối thiểu 260px, tự dãn */
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-    gap: 15px;
+  display: grid;
+  /* Grid tự động: tối thiểu 260px, tự dãn */
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 15px;
 }
 
 /* === RESULT CARD === */
 .result-item {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    overflow: hidden;
-    position: relative;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    display: flex;
-    flex-direction: column;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
 }
 
 /* Ảnh thumbnail cao lên (240px) */
 .result-item img {
-    width: 100%;
-    height: 240px; 
-    object-fit: cover;
-    background-color: #eee;
-    display: block;
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  background-color: #eee;
+  display: block;
 }
 
 /* Vùng Hover Preview */
 .hover-preview {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 240px; /* Khớp với chiều cao ảnh */
-    background: rgba(0,0,0,0.4);
-    display: none;
-    z-index: 10;
-    pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 240px;
+  /* Khớp với chiều cao ảnh */
+  background: rgba(0, 0, 0, 0.4);
+  display: none;
+  z-index: 10;
+  pointer-events: none;
 }
+
 .result-item:hover .hover-preview {
-    display: block;
+  display: block;
 }
+
 .hover-preview video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* Thông tin Text */
 .result-info {
-    padding: 8px 10px;
-    position: relative;
-    /* Chừa chỗ cho nút submit ở góc dưới */
-    padding-bottom: 40px; 
+  padding: 8px 10px;
+  position: relative;
+  /* Chừa chỗ cho nút submit ở góc dưới */
+  padding-bottom: 40px;
 }
 
 .result-info h3 {
-    margin: 0 0 4px 0;
-    font-size: 14px;
-    color: #333;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .result-scores {
-    font-size: 11px;
-    color: #666;
-    margin: 0;
-    line-height: 1.4;
+  font-size: 11px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .result-scores span {
-    display: inline-block;
-    margin-right: 8px;
+  display: inline-block;
+  margin-right: 8px;
 }
 
 /* === NÚT SUBMIT TRÊN CARD === */
 .card-submit-btn {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    background-color: #28a745; /* Màu xanh lá */
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 6px 14px;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    z-index: 20; /* Nổi lên trên cùng */
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background-color: #28a745;
+  /* Màu xanh lá */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 20;
+  /* Nổi lên trên cùng */
 }
 
 .card-submit-btn:hover {
-    background-color: #218838;
+  background-color: #218838;
 }
 
 .card-submit-btn:active {
-    transform: translateY(1px);
+  transform: translateY(1px);
 }
 
 /* === BUTTON SCROLL TO TOP === */
 #scroll-top-btn {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 45px;
-    height: 45px;
-    background-color: #005f73;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    font-size: 20px;
-    cursor: pointer;
-    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-    z-index: 950;
-    opacity: 0.8;
-    transition: opacity 0.3s;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 45px;
+  height: 45px;
+  background-color: #005f73;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+  z-index: 950;
+  opacity: 0.8;
+  transition: opacity 0.3s;
 }
 
 #scroll-top-btn:hover {
-    opacity: 1;
-    background-color: #0a9396;
+  opacity: 1;
+  background-color: #0a9396;
 }
 
 /* === MODAL & TIMELINE === */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.75); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-.modal-overlay.hidden { display: none; }
-.modal-content { background-color: #fff; padding: 20px; border-radius: 8px; width: 80%; max-width: 900px; position: relative; }
-.close-btn { position: absolute; top: 10px; right: 15px; font-size: 28px; border: none; background: none; cursor: pointer;}
-.video-player-wrapper { position: relative; width: 100%; }
-.video-player-wrapper video { width: 100%; display: block; }
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
 
-.video-timeline { position: relative; height: 8px; background: #444; margin-top: 8px; cursor: pointer; }
-.timeline-preview { position: absolute; left: 50%; transform: translateX(-50%); width: 160px; height: 90px; background: #000; border: 2px solid #fff; display: none; pointer-events: none; z-index: 1001; bottom: 20px; }
-.timeline-preview img { width: 100%; height: 100%; object-fit: cover; }
-.timeline-preview .time-label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #fff; padding: 2px; font-size: 12px; }
+.modal-overlay.hidden {
+  display: none;
+}
 
-.frame-controls { display: flex; justify-content: center; gap: 10px; margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 4px; }
-.frame-btn { background: #0077b6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
-.frame-info { font-weight: bold; color: #555; align-self: center; }
+.modal-content {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 900px;
+  position: relative;
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 28px;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.video-player-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.video-player-wrapper video {
+  width: 100%;
+  display: block;
+}
+
+.video-timeline {
+  position: relative;
+  height: 8px;
+  background: #444;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.timeline-preview {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 160px;
+  height: 90px;
+  background: #000;
+  border: 2px solid #fff;
+  display: none;
+  pointer-events: none;
+  z-index: 1001;
+  bottom: 20px;
+}
+
+.timeline-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.timeline-preview .time-label {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 2px;
+  font-size: 12px;
+}
+
+.frame-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.frame-btn {
+  background: #0077b6;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.frame-info {
+  font-weight: bold;
+  color: #555;
+  align-self: center;
+}
