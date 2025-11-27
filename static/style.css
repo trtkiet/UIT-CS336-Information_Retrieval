@@ -1,51 +1,60 @@
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     margin: 0;
-    padding: 20px;
+    padding: 0;
     background-color: #f4f7f6;
     color: #333;
 }
 
-header {
-    text-align: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 10px;
-}
-
-h1 {
-    color: #005f73;
-}
-
-.search-container {
+/* === HEADER & FORM (KHÔNG CÒN FIXED) === */
+.top-control-panel {
+    position: relative; /* Cuộn theo trang bình thường */
+    width: 100%;
     background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-bottom: 30px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+    padding: 15px;
+    box-sizing: border-box;
+    display: flex;
+    gap: 20px;
 }
 
-#search-form {
+.left-panel {
+    width: 100%;
+    /* Nếu muốn chia cột sau này thì chỉnh width ở đây */
+}
+
+.right-panel {
+    display: none;
+}
+
+/* Form gọn gàng */
+.compact-form {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    flex-direction: column;
     gap: 10px;
+    max-width: 600px; /* Giới hạn chiều rộng nhìn cho đỡ trải dài quá */
+}
+
+.search-row {
+    display: flex;
+    gap: 5px;
 }
 
 #main-query {
     flex-grow: 1;
-    font-size: 16px;
-    padding: 10px;
+    padding: 8px;
+    font-size: 14px;
     border: 1px solid #ccc;
     border-radius: 4px;
 }
 
-#search-btn, #toggle-filters-btn, #add-object-btn {
-    padding: 10px 15px;
+#search-btn, #toggle-filters-btn {
+    padding: 8px 15px;
+    font-size: 14px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 16px;
     background-color: #0077b6;
     color: white;
 }
@@ -54,309 +63,226 @@ h1 {
     background-color: #6c757d;
 }
 
-#advanced-filters {
-    width: 100%;
-    margin-top: 20px;
-    border-top: 1px solid #eee;
-    padding-top: 20px;
+/* Filters */
+.compact-filters {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 8px;
+    border-top: 1px solid #eee;
+    padding-top: 8px;
 }
 
-#advanced-filters.hidden {
+.compact-filters.hidden {
     display: none;
 }
 
-.filter-group {
+.filter-row {
     display: flex;
-    flex-direction: column;
+    gap: 10px;
+    align-items: center;
 }
 
-.filter-group label {
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #555;
-}
-
-.filter-group input[type="text"],
-.filter-group input[type="number"],
-.filter-group select {
-    padding: 8px;
+.filter-row input, .filter-row select {
+    padding: 6px;
+    font-size: 13px;
     border: 1px solid #ccc;
-    border-radius: 4px;
+    border-radius: 3px;
+}
+
+#audio-filter {
+    width: 100%;
+    padding: 8px;
+}
+
+.object-controls input[type="number"] {
+    width: 60px;
+}
+
+#add-object-btn {
+    padding: 6px 12px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
 }
 
 #object-list {
-    margin-top: 10px;
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 5px;
+    margin-top: 5px;
 }
 
 .object-item {
+    font-size: 12px;
+    background: #e9ecef;
+    padding: 4px 8px;
+    border-radius: 3px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    background-color: #e9ecef;
-    padding: 5px 10px;
-    border-radius: 4px;
+    gap: 5px;
 }
 
-.object-item .remove-obj-btn {
+.remove-obj-btn {
     background: #dc3545;
     color: white;
     border: none;
     border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    cursor: pointer;
-    line-height: 20px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
     text-align: center;
+    font-size: 10px;
+    cursor: pointer;
+    padding: 0;
 }
 
-.add-object-controls {
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
+/* === MAIN CONTENT === */
+main {
+    padding: 0 15px 20px 15px;
 }
 
 #results-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
+    /* Grid tự động: tối thiểu 260px, tự dãn */
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 15px;
 }
 
+/* === RESULT CARD === */
 .result-item {
     background: #fff;
     border: 1px solid #ddd;
-    border-radius: 8px;
+    border-radius: 6px;
     overflow: hidden;
+    position: relative;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     display: flex;
     flex-direction: column;
 }
 
+/* Ảnh thumbnail cao lên (240px) */
 .result-item img {
     width: 100%;
-    height: 200px;
+    height: 240px; 
     object-fit: cover;
     background-color: #eee;
+    display: block;
 }
 
-.result-info {
-    padding: 15px;
-}
-
-.result-info h3 {
-    margin: 0 0 10px 0;
-}
-
-.result-scores {
-    font-size: 12px;
-    color: #666;
-    background-color: #f8f9fa;
-    padding: 8px;
-    border-radius: 4px;
-    margin-top: 10px;
-}
-
-.modal-overlay {
-position: fixed; 
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-background-color: rgba(0, 0, 0, 0.75); 
-display: flex;
-justify-content: center;
-align-items: center;
-z-index: 1000; 
-opacity: 1;
-transition: opacity 0.3s ease;
-}
-
-.modal-overlay.hidden {
-display: none; /* Ẩn modal theo mặc định */
-opacity: 0;
-}
-
-.modal-content {
-background-color: #fff;
-padding: 20px;
-border-radius: 8px;
-box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-width: 80%;
-max-width: 900px; /* Đặt chiều rộng tối đa cho trình phát video */
-position: relative;
-transform: scale(1);
-transition: transform 0.3s ease;
-}
-
-.modal-overlay.hidden .modal-content {
-transform: scale(0.9);
-}
-
-.close-btn {
-position: absolute;
-top: 10px;
-right: 15px;
-font-size: 28px;
-font-weight: bold;
-color: #555;
-background: none;
-border: none;
-cursor: pointer;
-}
-
-#modal-video-title {
-margin-top: 0;
-margin-bottom: 15px;
-color: #005f73;
-}
-
-.results-controls {
-    display: flex;
-    justify-content: flex-end; /* Align to the right */
-    align-items: center;
-    padding: 10px;
-    margin-bottom: 20px;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.sort-control label {
-    margin-right: 10px;
-    font-weight: bold;
-    color: #555;
-}
-
-.sort-control select {
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 14px;
-}
-
-IGNORE_WHEN_COPYING_START
-IGNORE_WHEN_COPYING_END
-
-    
-.sorted-by {
-    font-weight: bold;
-    color: #0077b6; /* A highlight color */
-    background-color: #e0f7fa;
-    padding: 2px 4px;
-    border-radius: 3px;
-}
-
-/* ===== PREVIEW VIDEO KHI HOVER ===== */
-.result-item {
-    position: relative; /* Quan trọng để đặt preview overlay */
-}
-
+/* Vùng Hover Preview */
 .hover-preview {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 200px;
-    background: rgba(0, 0, 0, 0.4);
-    display: none; /* Ẩn mặc định */
+    height: 240px; /* Khớp với chiều cao ảnh */
+    background: rgba(0,0,0,0.4);
+    display: none;
     z-index: 10;
-    border-radius: 8px 8px 0 0;
+    pointer-events: none;
 }
-
 .result-item:hover .hover-preview {
-    display: block; /* Hiện khi hover */
+    display: block;
 }
-
 .hover-preview video {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-/* ===== TIMELINE PREVIEW (THUMBNAIL TRÊN THANH THỜI GIAN) ===== */
-.timeline-preview {
+/* Thông tin Text */
+.result-info {
+    padding: 8px 10px;
+    position: relative;
+    /* Chừa chỗ cho nút submit ở góc dưới */
+    padding-bottom: 40px; 
+}
+
+.result-info h3 {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.result-scores {
+    font-size: 11px;
+    color: #666;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.result-scores span {
+    display: inline-block;
+    margin-right: 8px;
+}
+
+/* === NÚT SUBMIT TRÊN CARD === */
+.card-submit-btn {
     position: absolute;
-    /*bottom: 50px; !* Đặt phía trên thanh thời gian *!*/
-    left: 50%;
-    transform: translateX(-50%);
-    width: 160px;
-    height: 90px;
-    background: #000;
-    border: 2px solid #fff;
-    border-radius: 4px;
-    display: none;
-    pointer-events: none;
-    z-index: 1001;
-}
-
-.timeline-preview img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.timeline-preview .time-label {
-    position: absolute;
-    bottom: -20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: #fff;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 12px;
-}
-
-/* ===== NÚT TUA FRAME ===== */
-.frame-controls {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-    padding: 10px;
-    background: #f0f0f0;
-    border-radius: 4px;
-}
-
-.frame-btn {
-    background: #0077b6;
+    bottom: 8px;
+    right: 8px;
+    background-color: #28a745; /* Màu xanh lá */
     color: white;
     border: none;
-    padding: 8px 12px;
     border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background 0.2s;
-}
-
-.frame-btn:hover {
-    background: #005f8a;
-}
-
-.frame-btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-.frame-info {
-    font-size: 14px;
-    color: #555;
+    padding: 6px 14px;
+    font-size: 12px;
     font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 20; /* Nổi lên trên cùng */
 }
 
-/* Video player container cải tiến */
-.video-player-wrapper {
-    position: relative;
-    width: 100%;
+.card-submit-btn:hover {
+    background-color: #218838;
 }
 
-.video-player-wrapper video {
-    width: 100%;
-    display: block;
+.card-submit-btn:active {
+    transform: translateY(1px);
 }
+
+/* === BUTTON SCROLL TO TOP === */
+#scroll-top-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 45px;
+    height: 45px;
+    background-color: #005f73;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+    z-index: 950;
+    opacity: 0.8;
+    transition: opacity 0.3s;
+}
+
+#scroll-top-btn:hover {
+    opacity: 1;
+    background-color: #0a9396;
+}
+
+/* === MODAL & TIMELINE === */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.75); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-overlay.hidden { display: none; }
+.modal-content { background-color: #fff; padding: 20px; border-radius: 8px; width: 80%; max-width: 900px; position: relative; }
+.close-btn { position: absolute; top: 10px; right: 15px; font-size: 28px; border: none; background: none; cursor: pointer;}
+.video-player-wrapper { position: relative; width: 100%; }
+.video-player-wrapper video { width: 100%; display: block; }
+
+.video-timeline { position: relative; height: 8px; background: #444; margin-top: 8px; cursor: pointer; }
+.timeline-preview { position: absolute; left: 50%; transform: translateX(-50%); width: 160px; height: 90px; background: #000; border: 2px solid #fff; display: none; pointer-events: none; z-index: 1001; bottom: 20px; }
+.timeline-preview img { width: 100%; height: 100%; object-fit: cover; }
+.timeline-preview .time-label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #fff; padding: 2px; font-size: 12px; }
+
+.frame-controls { display: flex; justify-content: center; gap: 10px; margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 4px; }
+.frame-btn { background: #0077b6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+.frame-info { font-weight: bold; color: #555; align-self: center; }

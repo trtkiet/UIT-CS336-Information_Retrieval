@@ -3,91 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Retrieval System</title>
-    <!-- Links to the CSS file located in the /static folder -->
+    <title>Video Retrieval</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
 
-    <header>
-        <h1>Video Retrieval System</h1>
-    </header>
+    <div class="top-control-panel">
+        <div class="left-panel">
+            <form id="search-form" class="compact-form">
+                <div class="search-row">
+                    <input type="text" id="main-query" name="description" placeholder="Description query..." autocomplete="off">
+                    <button type="submit" id="search-btn">Search</button>
+                    <button type="button" id="toggle-filters-btn">▼ Filters</button>
+                </div>
 
-    <main>
-        <!-- Main Search Form Container -->
-        <div class="search-container">
-            <form id="search-form">
-                <!-- Main semantic query input -->
-                <!-- <label for="Description-filter">Description:</label> -->
-                <input type="text" id="main-query" name="description" placeholder="Enter a general description (e.g., 'a person walking a dog')...">
-                
-                <!-- Buttons to control UI -->
-                <button type="button" id="toggle-filters-btn">▼ Advanced Filters</button>
-                <button type="submit" id="search-btn">Search</button>
-
-                <!-- Hidden Advanced Filters Panel -->
-                <div id="advanced-filters" class="hidden">
-                    
-                    <div class="filter-group">
-                        <label for="Audio-filter">Audio:</label>
-                        <input type="text" id="audio-filter" name="audio" placeholder="e.g., 'Hello'">
+                <div id="advanced-filters" class="hidden compact-filters">
+                    <div class="filter-row">
+                        <input type="text" id="audio-filter" name="audio" placeholder="Audio transcript..." autocomplete="off">
                     </div>
-
-                    <div class="filter-group">
-                        <label>Objects:</label>
-                        <div id="object-list">
-                            <!-- JavaScript will add selected objects here -->
-                        </div>
-                        <div class="add-object-controls">
-                            <select id="object-select">
-                                <option value="person">Person</option>
-                                <option value="car">Car</option>
-                                <option value="dog">Dog</option>
-                                <option value="cat">Cat</option>
-                                <option value="tree">Tree</option>
-                                <option value="chair">Chair</option>
-                                <option value="table">Table</option>
-                                <option value="screen">Screen</option>
-                            </select>
-                            <input type="number" id="object-confidence" value="0.7" max="1" title="Confidence of this object">
-                            <input type="number" id="object-min" value="1" min="1" title="Minimum count of this object">
-                            <input type="number" id="object-max" value="" max="100000" title="Maximum count of this object">
-                            <button type="button" id="add-object-btn">Add</button>
-                        </div>
+                    <div class="filter-row object-controls">
+                        <select id="object-select">
+                            <option value="person">Person</option>
+                            <option value="car">Car</option>
+                            <option value="dog">Dog</option>
+                            <option value="cat">Cat</option>
+                            <option value="tree">Tree</option>
+                            <option value="chair">Chair</option>
+                            <option value="table">Table</option>
+                            <option value="screen">Screen</option>
+                        </select>
+                        <input type="number" id="object-confidence" value="0.7" step="0.1" max="1" placeholder="Conf">
+                        <input type="number" id="object-min" value="1" min="1" placeholder="Min">
+                        <input type="number" id="object-max" value="" max="10000" placeholder="Max">
+                        <button type="button" id="add-object-btn">+</button>
                     </div>
+                    <div id="object-list"></div>
                 </div>
             </form>
         </div>
-
-        <!-- Controls for the Results Area (like sorting) -->
-        <div class="results-controls">
-            <div class="sort-control">
-                <label for="sort-by-select">Sort by:</label>
-                <select id="sort-by-select">
-                    <option value="clip_score" selected >CLIP Score</option>
-                    <!-- <option value="rerank_score" selected>Re-Ranker</option> -->
-                </select>
+        <div class="right-panel">
             </div>
-        </div>
+    </div>
 
-        <!-- Container where search results will be displayed -->
+    <main>
         <div id="results-container">
-            <p class="placeholder">Search results will appear here.</p>
+            <p class="placeholder" style="color:#777;">Results will appear here.</p>
         </div>
     </main>
 
-    <!-- =================================================== -->
-    <!--           VIDEO PLAYER MODAL (HIDDEN BY DEFAULT)    -->
-    <!-- =================================================== -->
+    <button id="scroll-top-btn" title="Press Space to scroll top">▲</button>
+
     <div id="video-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <button id="close-modal-btn" class="close-btn" title="Close video player">&times;</button>
-            <h3 id="modal-video-title">Loading video...</h3>
-            <video id="modal-video-player" width="100%" controls autoplay>
-                <!-- This message is shown if the browser doesn't support the <video> tag -->
-                Your browser does not support the video tag.
-            </video>
+            <button id="close-modal-btn" class="close-btn">&times;</button>
+            <h3 id="modal-video-title">Loading...</h3>
+            <div class="video-player-wrapper">
+                <video id="modal-video-player" width="100%" controls autoplay></video>
+            </div>
         </div>
     </div>
 

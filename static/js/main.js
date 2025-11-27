@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFilters();
     initVideoModal();
 
-    // Search Handler
+    // 1. Search Handler
     elements.searchForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(elements.searchForm);
@@ -27,10 +27,25 @@ document.addEventListener('DOMContentLoaded', () => {
         displayResults(currentResults);
     });
 
-    // Re-render on sort change
-    elements.sortBySelect.addEventListener('change', () => {
-        // Logic for client-side sorting could be added here if needed
-        // For now, it just re-renders the existing list to update the visual highlighting
-        displayResults(currentResults);
-    });
+    // 2. Scroll to Top Logic
+    const scrollTopBtn = document.getElementById('scroll-top-btn');
+
+    // Function to perform immediate scroll
+    const scrollToTop = () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'instant' // Immediate jump as requested
+        });
+    };
+
+    // Button Click Event
+    if (scrollTopBtn) {
+        scrollTopBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            scrollToTop();
+            // Blur button so space key doesn't re-trigger click immediately
+            scrollTopBtn.blur();
+        });
+    }
 });
+

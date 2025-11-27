@@ -13,7 +13,8 @@ export const elements = {
     
     // Results & Controls
     resultsContainer: document.getElementById('results-container'),
-    sortBySelect: document.getElementById('sort-by-select'),
+    // sortBySelect: Removed from HTML, so removing reference here prevents errors if accessed
+    sortBySelect: { value: 'clip_score' }, // Mock object to keep result.js working without refactor
 
     // Modal
     modalOverlay: document.getElementById('video-modal'),
