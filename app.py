@@ -121,6 +121,11 @@ def serve_hls(video_id, filename):
     try:
         video_hls_path = os.path.join(HLS_DIR, video_id)
         response = send_from_directory(video_hls_path, filename)
+
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+
         return response
     except FileNotFoundError:
         return "File not found", 404

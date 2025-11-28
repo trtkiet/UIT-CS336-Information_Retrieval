@@ -26,8 +26,6 @@ export function initVideoModal() {
 
       // Lấy thời gian hiện tại của player
       const currentTime = elements.modalVideoPlayer.currentTime;
-      // Chuyển đổi ra ms (Video player trả về giây)
-      // currentTime tương đương với (frame / fps), nên chỉ cần nhân 1000
       const timeMs = Math.round(currentTime * 1000);
 
       const confirmSubmit = confirm(
@@ -51,21 +49,76 @@ export function initVideoModal() {
 }
 
 export function openModal(videoId, startTime, fps) {
-  closeModal(); // Ensure cleanup of previous instance
+  closeModal(); // Dọn dẹp instance cũ trước khi mở mới
   currentOpenVideoId = videoId;
 
   elements.modalVideoTitle.textContent = `Playing: ${videoId} (FPS: ${fps})`;
-  const videoUrl = `/videos/${videoId}#t=${startTime}`;
-  elements.modalVideoPlayer.src = videoUrl;
   elements.modalOverlay.classList.remove("hidden");
 
-  // Video Wrapper setup
+  const hlsUrl = `/hls/${videoId}/playlist.m3u8`;
+  let mainHls = null;
+
+  // --- HLS PLAYER SETUP (Thay thế MP4 Player) ---
+  if (Hls.isSupported()) {
+    mainHls = new Hls({
+      debug: false,
+      enableWorker: true,
+    });
+    mainHls.loadSource(hlsUrl);
+    mainHls.attachMedia(elements.modalVideoPlayer);
+
+    mainHls.on(Hls.Events.MANIFEST_PARSED, function () {
+      // Seek đến đúng vị trí keyframe
+      elements.modalVideoPlayer.currentTime = startTime;
+      elements.modalVideoPlayer
+        .play()
+        .catch((e) => console.warn("Auto-play blocked:", e));
+    });
+
+    // Xử lý lỗi fatal của HLS
+    mainHls.on(Hls.Events.ERROR, function (event, data) {
+      if (data.fatal) {
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            console.error("Fatal network error encountered, trying to recover");
+            mainHls.startLoad();
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            console.error("Fatal media error encountered, trying to recover");
+            mainHls.recoverMediaError();
+            break;
+          default:
+            mainHls.destroy();
+            break;
+        }
+      }
+    });
+  } else if (
+    elements.modalVideoPlayer.canPlayType("application/vnd.apple.mpegurl")
+  ) {
+    // Fallback cho Safari
+    elements.modalVideoPlayer.src = hlsUrl;
+    elements.modalVideoPlayer.addEventListener(
+      "loadedmetadata",
+      function () {
+        elements.modalVideoPlayer.currentTime = startTime;
+        elements.modalVideoPlayer.play();
+      },
+      { once: true },
+    );
+  } else {
+    // Fallback cuối cùng nếu không hỗ trợ HLS (quay về MP4 nếu cần, hoặc báo lỗi)
+    console.error("HLS not supported in this browser.");
+    elements.modalVideoPlayer.src = `/videos/${videoId}#t=${startTime}`;
+  }
+
+  // --- Video Wrapper styling ---
   const videoWrapper = elements.modalVideoPlayer.parentElement;
   if (getComputedStyle(videoWrapper).position === "static") {
     videoWrapper.style.position = "relative";
   }
 
-  // --- Create Timeline UI ---
+  // --- Create Timeline UI (Giữ nguyên logic cũ) ---
   const timelineBar = document.createElement("div");
   timelineBar.className = "video-timeline";
   Object.assign(timelineBar.style, {
@@ -107,16 +160,15 @@ export function openModal(videoId, startTime, fps) {
   const previewImg = timelinePreview.querySelector("img");
   const timeLabel = timelinePreview.querySelector(".time-label");
 
-  // --- HLS Preview Setup (Hidden Video) ---
+  // --- HLS Preview Setup (Hidden Video for Hover) ---
   const previewVideo = document.createElement("video");
   previewVideo.muted = true;
   previewVideo.preload = "metadata";
   previewVideo.style.display = "none";
   videoWrapper.appendChild(previewVideo);
 
-  const hlsUrl = `/hls/${videoId}/playlist.m3u8?t=${Date.now()}`;
   let previewHls = null;
-
+  // Reuse HLS logic for preview
   if (Hls.isSupported()) {
     previewHls = new Hls({
       maxBufferLength: 1,
@@ -127,8 +179,6 @@ export function openModal(videoId, startTime, fps) {
     previewHls.attachMedia(previewVideo);
   } else if (previewVideo.canPlayType("application/vnd.apple.mpegurl")) {
     previewVideo.src = hlsUrl;
-  } else {
-    previewVideo.src = `/videos/${videoId}`; // Fallback
   }
 
   // --- Hover Logic ---
@@ -146,6 +196,7 @@ export function openModal(videoId, startTime, fps) {
 
     const onSeeked = () => {
       if (Math.abs(previewVideo.currentTime - targetTime) > 0.5) return;
+
       const vw = previewVideo.videoWidth || previewVideo.clientWidth;
       const vh = previewVideo.videoHeight || previewVideo.clientHeight;
       if (!vw || !vh) return;
@@ -299,13 +350,10 @@ export function openModal(videoId, startTime, fps) {
     frameControls,
     previewVideo,
     previewHls,
+    mainHls, // LƯU MAIN HLS ĐỂ CLEANUP
     updateProgress,
     updateFrameInfo,
   };
-
-  elements.modalVideoPlayer
-    .play()
-    .catch((err) => console.warn("Autoplay prevented:", err));
 }
 
 export function closeModal() {
@@ -331,7 +379,14 @@ export function closeModal() {
         h.updateFrameInfo,
       );
 
+      // Destroy Preview HLS
       if (h.previewHls) h.previewHls.destroy();
+
+      // Destroy Main Player HLS
+      if (h.mainHls) {
+        h.mainHls.destroy();
+      }
+
       if (h.previewVideo) {
         h.previewVideo.removeAttribute("src");
         h.previewVideo.load();
@@ -346,6 +401,7 @@ export function closeModal() {
 
   elements.modalOverlay.classList.add("hidden");
   elements.modalVideoPlayer.pause();
-  elements.modalVideoPlayer.src = "";
+  elements.modalVideoPlayer.removeAttribute("src");
+  elements.modalVideoPlayer.load();
   elements.modalVideoTitle.textContent = "";
 }
