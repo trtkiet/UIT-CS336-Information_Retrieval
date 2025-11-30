@@ -9,6 +9,7 @@ from utils.elasticsearch_client import get_elasticsearch_client
 from utils.text_encoder import TextEncoder
 from bson import json_util
 import json
+import torch
 
 # --- Setup Logging ---
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ class VideoRetrievalSystem:
         logger.info("Successfully connected to Elasticsearch.")
 
         # Initialize the text encoder
-        self.device = "cpu"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.encoder = TextEncoder(device=self.device)
 
     def clip_search(self, query: str = "", max_results: int = 200) -> list:
